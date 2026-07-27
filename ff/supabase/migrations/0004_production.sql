@@ -3,16 +3,14 @@
 -- ─── Performance indexes ─────────────────────────────────────────────────────
 
 create index if not exists transactions_monthly
-  on flowfinance_transactions (user_id, (occurred_on::date))
-  where occurred_on >= (current_date - interval '90 days');
+  on flowfinance_transactions (user_id, occurred_on);
 
 create index if not exists receipts_analyzed_at
   on flowfinance_receipts (user_id, analyzed_at desc)
   where status = 'done';
 
 create index if not exists ai_usage_cleanup
-  on flowfinance_ai_usage (day)
-  where day < current_date - interval '30 days';
+  on flowfinance_ai_usage (day);
 
 -- ─── Auth trigger: create default exchange_rate_config on signup ────────────
 
