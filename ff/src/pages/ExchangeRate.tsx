@@ -183,63 +183,46 @@ export default function ExchangeRate() {
                 {t('noData')}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-left text-xs text-slate-400">
-                      <th className="pb-2 font-medium">{t('date')}</th>
-                      <th className="pb-2 font-medium">
-                        {language === 'es' ? 'Compra' : 'Buy'}
-                      </th>
-                      <th className="pb-2 font-medium">
-                        {language === 'es' ? 'Venta' : 'Sell'}
-                      </th>
-                      <th className="pb-2 font-medium">{t('type')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {history.map((entry) => (
-                      <tr
-                        key={entry.id}
-                        className="border-b border-slate-50 text-slate-700"
-                      >
-                        <td className="py-2.5">
-                          {entry.capturedAt
-                            ? formatDateFull(entry.capturedAt)
-                            : '—'}
-                        </td>
-                        <td className="py-2.5 font-medium">
-                          {entry.rateBuy != null
-                            ? formatCurrency(entry.rateBuy)
-                            : '—'}
-                        </td>
-                        <td className="py-2.5 font-medium">
-                          {entry.rateSell != null
-                            ? formatCurrency(entry.rateSell)
-                            : '—'}
-                        </td>
-                        <td className="py-2.5">
-                          <span
-                            className={cn(
-                              'rounded-full px-2 py-0.5 text-xs font-medium',
-                              entry.status === 'ok'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : entry.status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-red-100 text-red-700',
-                            )}
-                          >
-                            {entry.status === 'ok'
-                              ? 'OK'
-                              : entry.status === 'pending'
-                                ? t('pending')
-                                : 'Error'}
+              <div className="divide-y divide-slate-100">
+                {history.map((entry) => (
+                  <div key={entry.id} className="flex items-center justify-between gap-4 py-3 sm:py-2.5">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-400">
+                        {entry.capturedAt ? formatDateFull(entry.capturedAt) : '—'}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
+                        <span className="text-sm text-slate-700">
+                          {language === 'es' ? 'Compra:' : 'Buy:'}{' '}
+                          <span className="font-medium">
+                            {entry.rateBuy != null ? formatCurrency(entry.rateBuy) : '—'}
                           </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                        </span>
+                        <span className="text-sm text-slate-700">
+                          {language === 'es' ? 'Venta:' : 'Sell:'}{' '}
+                          <span className="font-medium">
+                            {entry.rateSell != null ? formatCurrency(entry.rateSell) : '—'}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                        entry.status === 'ok'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : entry.status === 'pending'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : 'bg-red-100 text-red-700',
+                      )}
+                    >
+                      {entry.status === 'ok'
+                        ? 'OK'
+                        : entry.status === 'pending'
+                          ? t('pending')
+                          : 'Error'}
+                    </span>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>

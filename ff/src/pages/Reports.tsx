@@ -26,7 +26,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
 import { cn } from '@/lib/cn';
-import { useLanguage } from '@/i18n/LanguageProvider';
+import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
 import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/domain/categories';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -59,6 +59,7 @@ function getDateRange(period: Period): { start: string; end: string } {
 
 export default function Reports() {
   const { t } = useLanguage();
+  const categoryLabel = useCategoryLabel();
   const [period, setPeriod] = useState<Period>('month');
   const [chartView, setChartView] = useState<'pie' | 'bar'>('pie');
 
@@ -149,17 +150,17 @@ export default function Reports() {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/Savings">
-              <Button variant="outline" size="sm">
+              <Button variant="outline">
                 <Target className="h-4 w-4" />
                 {t('savings')}
               </Button>
             </Link>
             <Link to="/Settings">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="icon">
                 <Settings className="h-4 w-4" />
               </Button>
             </Link>
-            <Button variant="outline" size="sm" onClick={handleExport}>
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4" />
               {t('exportToExcel')}
             </Button>
@@ -172,7 +173,7 @@ export default function Reports() {
               key={p}
               onClick={() => setPeriod(p)}
               className={cn(
-                'rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'rounded-md px-4 py-2 text-sm font-medium transition-colors',
                 period === p
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-700',
@@ -247,11 +248,11 @@ export default function Reports() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">{t('visualizations')}</CardTitle>
-            <div className="flex gap-1 rounded-md bg-slate-100 p-0.5">
+            <div className="flex gap-1 rounded-md bg-slate-100 p-1">
               <button
                 onClick={() => setChartView('pie')}
                 className={cn(
-                  'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                  'rounded px-3 py-2 text-sm font-medium transition-colors',
                   chartView === 'pie'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700',
@@ -262,7 +263,7 @@ export default function Reports() {
               <button
                 onClick={() => setChartView('bar')}
                 className={cn(
-                  'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                  'rounded px-3 py-2 text-sm font-medium transition-colors',
                   chartView === 'bar'
                     ? 'bg-white text-slate-900 shadow-sm'
                     : 'text-slate-500 hover:text-slate-700',
@@ -284,7 +285,7 @@ export default function Reports() {
                         cy="50%"
                         outerRadius={100}
                         dataKey="value"
-                        label={({ name }) => name}
+                        label={({ name }) => categoryLabel(name)}
                       >
                         {expensesByCategory.map((entry) => (
                           <Cell
@@ -295,8 +296,9 @@ export default function Reports() {
                       </Pie>
                       <RechartsTooltip
                         formatter={(value: number) => formatCurrency(value)}
+                        labelFormatter={(name: string) => categoryLabel(name)}
                       />
-                      <Legend />
+                      <Legend formatter={(name: string) => categoryLabel(name)} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
@@ -351,7 +353,7 @@ export default function Reports() {
                         </p>
                         <p className="text-xs text-slate-400">
                           {tx.occurredOn ? formatDate(tx.occurredOn) : ''} ·{' '}
-                          {tx.category}
+                          {categoryLabel(tx.category)}
                         </p>
                       </div>
                     </div>

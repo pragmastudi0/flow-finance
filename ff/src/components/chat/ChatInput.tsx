@@ -55,7 +55,8 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={loading}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          aria-label="Subir comprobante"
         >
           <Camera className="h-5 w-5" />
         </button>
@@ -77,7 +78,7 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             placeholder={placeholders[placeholderIndex]}
             disabled={loading}
-            className="flex h-11 w-full rounded-2xl border border-input bg-muted/50 px-4 pr-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+            className="flex h-12 w-full rounded-2xl border border-input bg-muted/50 px-4 pr-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
           />
         </div>
 
@@ -86,11 +87,12 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
           onClick={handleSubmit}
           disabled={!value.trim() || loading}
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition-colors',
+            'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-colors',
             value.trim() && !loading
               ? 'bg-primary hover:bg-primary/90'
               : 'bg-muted-foreground/30',
           )}
+          aria-label="Enviar"
         >
           <SendHorizonal className="h-5 w-5" />
         </button>

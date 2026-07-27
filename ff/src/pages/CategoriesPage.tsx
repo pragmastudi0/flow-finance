@@ -137,18 +137,19 @@ export default function CategoriesPage() {
                   <label className="text-sm font-medium text-slate-700">
                     {t('icon')}
                   </label>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
+                  <div className="mt-1 flex flex-wrap gap-2">
                     {CATEGORY_EMOJI_OPTIONS.map((emoji) => (
                       <button
                         key={emoji}
                         type="button"
                         onClick={() => setIcon(emoji)}
                         className={cn(
-                          'flex h-8 w-8 items-center justify-center rounded-md text-base transition-colors',
+                          'flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors',
                           icon === emoji
                             ? 'bg-slate-200 ring-2 ring-slate-400'
                             : 'hover:bg-slate-100',
                         )}
+                        aria-label={emoji}
                       >
                         {emoji}
                       </button>
@@ -159,17 +160,18 @@ export default function CategoriesPage() {
                   <label className="text-sm font-medium text-slate-700">
                     {t('color')}
                   </label>
-                  <div className="mt-1 flex flex-wrap gap-2">
+                  <div className="mt-1 flex flex-wrap gap-3">
                     {CATEGORY_COLOR_OPTIONS.map((c) => (
                       <button
                         key={c.value}
                         type="button"
                         onClick={() => setColor(c.hex)}
                         className={cn(
-                          'h-7 w-7 rounded-full transition-transform',
-                          color === c.hex && 'scale-125 ring-2 ring-slate-400 ring-offset-1',
+                          'h-10 w-10 rounded-full transition-transform',
+                          color === c.hex && 'scale-125 ring-2 ring-slate-400 ring-offset-2',
                         )}
                         style={{ backgroundColor: c.hex }}
+                        aria-label={c.value}
                       />
                     ))}
                   </div>
@@ -245,9 +247,10 @@ export default function CategoriesPage() {
                   />
                   <button
                     onClick={() => handleDelete(cat.id)}
-                    className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    aria-label={t('delete')}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               ))}

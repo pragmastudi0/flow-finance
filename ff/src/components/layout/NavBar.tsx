@@ -16,7 +16,7 @@ export function NavBar() {
   const location = useLocation();
 
   return (
-    <nav className="shrink-0 border-t bg-background px-2 pb-2 pt-1">
+    <nav className="shrink-0 border-t bg-background px-2 pb-3 pt-2 safe-area-pb">
       <div className="mx-auto flex max-w-lg items-center justify-around">
         {NAV_ITEMS.map(({ path, labelKey, icon: Icon }) => {
           const active = location.pathname === path;
@@ -25,13 +25,13 @@ export function NavBar() {
               key={path}
               to={path}
               className={cn(
-                'flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                'flex flex-col items-center gap-0.5 rounded-lg px-4 py-2 text-xs font-medium transition-colors min-w-0 flex-1',
                 active
                   ? 'text-primary'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-6 w-6" />
               <span>{t(labelKey)}</span>
             </Link>
           );

@@ -74,9 +74,9 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
 
       <div
         className={cn(
-          'flex shrink-0 items-center gap-1',
+          'flex shrink-0 items-center gap-2',
           saved
-            ? 'absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100'
+            ? 'absolute right-2 top-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity'
             : 'ml-2',
         )}
       >
@@ -85,17 +85,19 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
             {onEdit && (
               <button
                 onClick={() => onEdit(tx)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                aria-label="Editar"
               >
-                <Pencil className="h-3.5 w-3.5" />
+                <Pencil className="h-4 w-4" />
               </button>
             )}
             {onDelete && (
               <button
                 onClick={() => onDelete(tx.id)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                aria-label="Eliminar"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </button>
             )}
           </>
@@ -104,17 +106,19 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
             {onEdit && (
               <button
                 onClick={() => onEdit(tx)}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500 text-white transition-colors hover:bg-green-600"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 text-white transition-colors hover:bg-green-600"
+                aria-label="Confirmar"
               >
-                <Check className="h-4 w-4" />
+                <Check className="h-5 w-5" />
               </button>
             )}
             {onDelete && (
               <button
                 onClick={() => onDelete((tx as ParsedTransaction).rawInput ?? '')}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500 text-white transition-colors hover:bg-red-600"
+                aria-label="Cancelar"
               >
-                <X className="h-4 w-4" />
+                <X className="h-5 w-5" />
               </button>
             )}
           </>
