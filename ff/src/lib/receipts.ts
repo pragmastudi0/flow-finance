@@ -43,7 +43,7 @@ export async function analyzeDocument(file: File): Promise<AnalyzedDocument> {
   if (uploadError) throw new DocumentError('upload_failed', uploadError.message);
 
   const { data: receipt, error: insertError } = await supabase
-    .from('receipts')
+    .from('flowfinance_receipts')
     .insert({ user_id: user.id, storage_path: storagePath, status: 'pending' })
     .select('id')
     .single();
@@ -84,7 +84,7 @@ export async function confirmTransaction(
   if (!user) throw new Error('No hay sesión activa');
 
   const { data: tx, error } = await supabase
-    .from('transactions')
+    .from('flowfinance_transactions')
     .insert({
       user_id: user.id,
       type: transactionData.type,
@@ -102,7 +102,7 @@ export async function confirmTransaction(
   if (error || !tx) throw new Error(error?.message ?? 'No se pudo crear la transacción');
 
   await supabase
-    .from('receipts')
+    .from('flowfinance_receipts')
     .update({ transaction_id: tx.id })
     .eq('id', receiptId);
 

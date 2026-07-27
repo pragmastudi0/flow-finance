@@ -9,7 +9,7 @@ export function useFixedExpenses() {
     queryFn: async () => {
       if (isDemoMode()) return demoFixedExpenses.getAll() as FixedExpense[];
       const { data, error } = await supabase
-        .from('fixed_expenses')
+        .from('flowfinance_fixed_expenses')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -34,7 +34,7 @@ export function useCreateFixedExpense() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('No hay sesión activa');
       const { data, error } = await supabase
-        .from('fixed_expenses')
+        .from('flowfinance_fixed_expenses')
         .insert({ ...fe, user_id: auth.user.id })
         .select('id')
         .single();
@@ -50,7 +50,7 @@ export function useToggleFixedExpense() {
   return useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'active' | 'cancelled' | 'completed' }) => {
       if (isDemoMode()) { demoFixedExpenses.update(id, { status }); return; }
-      const { error } = await supabase.from('fixed_expenses').update({ status }).eq('id', id);
+      const { error } = await supabase.from('flowfinance_fixed_expenses').update({ status }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['fixed-expenses'] }),

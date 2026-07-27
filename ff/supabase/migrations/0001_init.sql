@@ -25,11 +25,11 @@ begin
 end;
 $$;
 
--- ─── categories ──────────────────────────────────────────────────────────────
--- Only user-created ones. The built-in categories live in the app as constants,
+-- ─── flowfinance_categories ──────────────────────────────────────────────────────────────
+-- Only user-created ones. The built-in flowfinance_categories live in the app as constants,
 -- same as the original.
 
-create table categories (
+create table flowfinance_categories (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users on delete cascade,
   name        text not null check (length(trim(name)) between 1 and 40),
@@ -41,11 +41,11 @@ create table categories (
 );
 
 create unique index categories_unique_name
-  on categories (user_id, type, lower(name));
+  on flowfinance_categories (user_id, type, lower(name));
 
--- ─── transactions ────────────────────────────────────────────────────────────
+-- ─── flowfinance_transactions ────────────────────────────────────────────────────────────
 
-create table transactions (
+create table flowfinance_transactions (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references auth.users on delete cascade,
   type         tx_type not null,
@@ -62,13 +62,13 @@ create table transactions (
   updated_at   timestamptz not null default now()
 );
 
-create index transactions_user_date on transactions (user_id, occurred_on desc);
-create index transactions_user_created on transactions (user_id, created_at desc);
-create index transactions_user_category on transactions (user_id, category);
+create index transactions_user_date on flowfinance_transactions (user_id, occurred_on desc);
+create index transactions_user_created on flowfinance_transactions (user_id, created_at desc);
+create index transactions_user_category on flowfinance_transactions (user_id, category);
 
 -- ─── category learnings ──────────────────────────────────────────────────────
 
-create table category_learnings (
+create table flowfinance_category_learnings (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null references auth.users on delete cascade,
   keyword     text not null,
@@ -79,11 +79,11 @@ create table category_learnings (
 );
 
 create unique index category_learnings_unique
-  on category_learnings (user_id, type, lower(keyword));
+  on flowfinance_category_learnings (user_id, type, lower(keyword));
 
 -- ─── fixed expenses ──────────────────────────────────────────────────────────
 
-create table fixed_expenses (
+create table flowfinance_fixed_expenses (
   id                     uuid primary key default gen_random_uuid(),
   user_id                uuid not null references auth.users on delete cascade,
   description            text not null,
@@ -105,11 +105,11 @@ create table fixed_expenses (
   )
 );
 
-create index fixed_expenses_user_status on fixed_expenses (user_id, status);
+create index fixed_expenses_user_status on flowfinance_fixed_expenses (user_id, status);
 
 -- ─── savings ─────────────────────────────────────────────────────────────────
 
-create table savings_goals (
+create table flowfinance_savings_goals (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references auth.users on delete cascade,
   description  text not null,
@@ -123,32 +123,32 @@ create table savings_goals (
 -- Contributions are the source of truth for progress (H-2). The original kept a
 -- `currentSavedAmount` column and never wrote this table, which left the
 -- "on track / needs more savings" estimate permanently empty.
-create table savings_contributions (
+create table flowfinance_savings_contributions (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null references auth.users on delete cascade,
-  goal_id      uuid not null references savings_goals on delete cascade,
+  goal_id      uuid not null references flowfinance_savings_goals on delete cascade,
   -- Negative rows are withdrawals; that is what the "Restar" button records.
   amount       numeric(14,2) not null check (amount <> 0),
   occurred_on  date not null default current_date,
   created_at   timestamptz not null default now()
 );
 
-create index savings_contributions_goal on savings_contributions (goal_id, created_at desc);
+create index savings_contributions_goal on flowfinance_savings_contributions (goal_id, created_at desc);
 
-create view savings_goals_with_progress
+create view flowfinance_savings_goals_with_progress
 with (security_invoker = true) as
 select
   g.*,
   coalesce(sum(c.amount), 0)                                as current_saved_amount,
   greatest(g.goal_amount - coalesce(sum(c.amount), 0), 0)   as remaining_amount,
   least(coalesce(sum(c.amount), 0) / g.goal_amount * 100, 100) as progress_pct
-from savings_goals g
-left join savings_contributions c on c.goal_id = g.id
+from flowfinance_savings_goals g
+left join flowfinance_savings_contributions c on c.goal_id = g.id
 group by g.id;
 
 -- ─── exchange rate ───────────────────────────────────────────────────────────
 
-create table exchange_rate_configs (
+create table flowfinance_exchange_rate_configs (
   id               uuid primary key default gen_random_uuid(),
   user_id          uuid not null unique references auth.users on delete cascade,
   source_url       text not null default 'https://api.bluelytics.com.ar/v2/latest',
@@ -161,7 +161,7 @@ create table exchange_rate_configs (
   updated_at       timestamptz not null default now()
 );
 
-create table exchange_rate_history (
+create table flowfinance_exchange_rate_history (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users on delete cascade,
   captured_at    timestamptz not null default now(),
@@ -171,7 +171,7 @@ create table exchange_rate_history (
   error_message  text
 );
 
-create index exchange_rate_history_user on exchange_rate_history (user_id, captured_at desc);
+create index exchange_rate_history_user on flowfinance_exchange_rate_history (user_id, captured_at desc);
 
 -- ─── updated_at triggers ─────────────────────────────────────────────────────
 
@@ -179,8 +179,8 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'categories', 'transactions', 'category_learnings',
-    'fixed_expenses', 'savings_goals', 'exchange_rate_configs'
+    'flowfinance_categories', 'flowfinance_transactions', 'flowfinance_category_learnings',
+    'flowfinance_fixed_expenses', 'flowfinance_savings_goals', 'flowfinance_exchange_rate_configs'
   ] loop
     execute format(
       'create trigger %I_set_updated_at before update on %I
@@ -194,9 +194,9 @@ do $$
 declare t text;
 begin
   foreach t in array array[
-    'categories', 'transactions', 'category_learnings', 'fixed_expenses',
-    'savings_goals', 'savings_contributions', 'exchange_rate_configs',
-    'exchange_rate_history'
+    'flowfinance_categories', 'flowfinance_transactions', 'flowfinance_category_learnings', 'flowfinance_fixed_expenses',
+    'flowfinance_savings_goals', 'flowfinance_savings_contributions', 'flowfinance_exchange_rate_configs',
+    'flowfinance_exchange_rate_history'
   ] loop
     execute format('alter table %I enable row level security', t);
     execute format(

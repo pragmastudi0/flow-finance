@@ -117,7 +117,7 @@ Deno.serve(async (req) => {
   const admin = createClient(url, serviceKey);
 
   const { data: receipt, error: loadError } = await asUser
-    .from('receipts')
+    .from('flowfinance_receipts')
     .select('id, storage_path, status')
     .eq('id', receiptId)
     .single();
@@ -133,11 +133,11 @@ Deno.serve(async (req) => {
     return json({ error: 'daily_limit_reached', limit: DAILY_LIMIT }, 429);
   }
 
-  await admin.from('receipts').update({ status: 'analyzing' }).eq('id', receipt.id);
+  await admin.from('flowfinance_receipts').update({ status: 'analyzing' }).eq('id', receipt.id);
 
   const fail = async (message: string, status = 502) => {
     await admin
-      .from('receipts')
+      .from('flowfinance_receipts')
       .update({ status: 'failed', error: message.slice(0, 500), analyzed_at: new Date().toISOString() })
       .eq('id', receipt.id);
     return json({ error: 'analysis_failed', detail: message }, status);
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
     if (!extraction) return await fail('the image does not look like a receipt', 422);
 
     const { error: saveError } = await admin
-      .from('receipts')
+      .from('flowfinance_receipts')
       .update({
         status: 'done',
         merchant: extraction.merchant,

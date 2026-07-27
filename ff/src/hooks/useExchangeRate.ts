@@ -20,7 +20,7 @@ export function useExchangeRateConfig() {
         } as ExchangeRateConfig;
       }
       const { data, error } = await supabase
-        .from('exchange_rate_configs')
+        .from('flowfinance_exchange_rate_configs')
         .select('*')
         .single();
       if (error && error.code !== 'PGRST116') throw error;
@@ -36,7 +36,7 @@ export function useSaveExchangeRateConfig() {
       if (isDemoMode()) return;
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('No hay sesión activa');
-      const { error } = await supabase.from('exchange_rate_configs').upsert(
+      const { error } = await supabase.from('flowfinance_exchange_rate_configs').upsert(
         { ...cfg, user_id: auth.user.id },
         { onConflict: 'user_id' },
       );
@@ -68,7 +68,7 @@ export function useExchangeRateHistory() {
         return history;
       }
       const { data, error } = await supabase
-        .from('exchange_rate_history')
+        .from('flowfinance_exchange_rate_history')
         .select('*')
         .order('captured_at', { ascending: false })
         .limit(30);

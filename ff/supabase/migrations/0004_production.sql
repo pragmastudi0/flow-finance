@@ -3,15 +3,15 @@
 -- ─── Performance indexes ─────────────────────────────────────────────────────
 
 create index if not exists transactions_monthly
-  on transactions (user_id, (occurred_on::date))
+  on flowfinance_transactions (user_id, (occurred_on::date))
   where occurred_on >= (current_date - interval '90 days');
 
 create index if not exists receipts_analyzed_at
-  on receipts (user_id, analyzed_at desc)
+  on flowfinance_receipts (user_id, analyzed_at desc)
   where status = 'done';
 
 create index if not exists ai_usage_cleanup
-  on ai_usage (day)
+  on flowfinance_ai_usage (day)
   where day < current_date - interval '30 days';
 
 -- ─── Auth trigger: create default exchange_rate_config on signup ────────────
@@ -23,7 +23,7 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into exchange_rate_configs (user_id, source_url, refresh_minutes)
+  insert into flowfinance_exchange_rate_configs (user_id, source_url, refresh_minutes)
   values (new.id, 'https://api.bluelytics.com.ar/v2/latest', 60)
   on conflict (user_id) do nothing;
   return new;
@@ -80,4 +80,4 @@ $$;
 -- ─── Cleanup old AI usage records (run periodically) ────────────────────────
 
 -- Run via pg_cron or a scheduled edge function:
--- delete from ai_usage where day < current_date - interval '30 days';
+-- delete from flowfinance_ai_usage where day < current_date - interval '30 days';

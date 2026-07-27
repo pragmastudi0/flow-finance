@@ -6,7 +6,7 @@
 
 create type receipt_status as enum ('pending', 'analyzing', 'done', 'failed');
 
-create table receipts (
+create table flowfinance_receipts (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null references auth.users on delete cascade,
 
@@ -28,23 +28,23 @@ create table receipts (
   error          text,
 
   -- Set once the user confirms. Null means "extracted but not accepted yet".
-  transaction_id uuid references transactions on delete set null,
+  transaction_id uuid references flowfinance_transactions on delete set null,
 
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now(),
   analyzed_at    timestamptz
 );
 
-create index receipts_user_created on receipts (user_id, created_at desc);
-create index receipts_pending on receipts (user_id) where status = 'pending';
+create index receipts_user_created on flowfinance_receipts (user_id, created_at desc);
+create index receipts_pending on flowfinance_receipts (user_id) where status = 'pending';
 
 create trigger receipts_set_updated_at
-  before update on receipts
+  before update on flowfinance_receipts
   for each row execute function set_updated_at();
 
-alter table receipts enable row level security;
+alter table flowfinance_receipts enable row level security;
 
-create policy receipts_owner on receipts
+create policy receipts_owner on flowfinance_receipts
   for all to authenticated
   using (user_id = (select auth.uid()))
   with check (user_id = (select auth.uid()));
@@ -77,16 +77,16 @@ create policy receipts_storage_owner on storage.objects
 -- Free AI tiers are rate limited and shared across the whole project, so one
 -- user uploading a hundred photos would lock everyone else out for the day.
 
-create table ai_usage (
+create table flowfinance_ai_usage (
   user_id  uuid not null references auth.users on delete cascade,
   day      date not null default current_date,
   calls    integer not null default 0,
   primary key (user_id, day)
 );
 
-alter table ai_usage enable row level security;
+alter table flowfinance_ai_usage enable row level security;
 
-create policy ai_usage_owner on ai_usage
+create policy ai_usage_owner on flowfinance_ai_usage
   for select to authenticated
   using (user_id = (select auth.uid()));
 
@@ -103,10 +103,10 @@ as $$
 declare
   v_calls integer;
 begin
-  insert into ai_usage (user_id, day, calls)
+  insert into flowfinance_ai_usage (user_id, day, calls)
   values (p_user_id, current_date, 1)
   on conflict (user_id, day) do update
-    set calls = ai_usage.calls + 1
+    set calls = flowfinance_ai_usage.calls + 1
   returning calls into v_calls;
 
   return v_calls <= p_daily_limit;

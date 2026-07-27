@@ -28,7 +28,7 @@ export function useTransactions(filter: TransactionFilter = {}) {
     queryFn: async () => {
       if (isDemoMode()) return filterDemo(filter);
       let query = supabase
-        .from('transactions')
+        .from('flowfinance_transactions')
         .select('*')
         .order('occurred_on', { ascending: false })
         .order('created_at', { ascending: false });
@@ -71,7 +71,7 @@ export function useCreateTransaction() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) throw new Error('No hay sesión activa');
       const { data, error } = await supabase
-        .from('transactions')
+        .from('flowfinance_transactions')
         .insert({ ...tx, user_id: auth.user.id })
         .select('id')
         .single();
@@ -89,7 +89,7 @@ export function useDeleteTransaction() {
   return useMutation({
     mutationFn: async (id: string) => {
       if (isDemoMode()) { demoTransactions.remove(id); return; }
-      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      const { error } = await supabase.from('flowfinance_transactions').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -103,7 +103,7 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: async ({ id, ...data }: { id: string } & Partial<Omit<Transaction, 'id' | 'createdAt' | 'user_id'>>) => {
       if (isDemoMode()) { demoTransactions.update(id, data); return; }
-      const { error } = await supabase.from('transactions').update(data).eq('id', id);
+      const { error } = await supabase.from('flowfinance_transactions').update(data).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {

@@ -9,7 +9,7 @@ export function useSavingsGoals() {
     queryFn: async () => {
       if (isDemoMode()) return demoGoals.getAll() as SavingsGoal[];
       const { data, error } = await supabase
-        .from('savings_goals_with_progress')
+        .from('flowfinance_savings_goals_with_progress')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -26,7 +26,7 @@ export function useCreateGoal() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('No hay sesión activa');
       const { data, error } = await supabase
-        .from('savings_goals')
+        .from('flowfinance_savings_goals')
         .insert({ ...g, user_id: auth.user.id })
         .select('id')
         .single();
@@ -58,7 +58,7 @@ export function useContributeToGoal() {
       }
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('No hay sesión activa');
-      const { error } = await supabase.from('savings_contributions').insert({
+      const { error } = await supabase.from('flowfinance_savings_contributions').insert({
         goal_id,
         amount,
         occurred_on: occurred_on ?? new Date().toISOString().split('T')[0],
