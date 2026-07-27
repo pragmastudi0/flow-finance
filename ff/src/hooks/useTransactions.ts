@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import { demoTransactions, getDemoUser } from '@/lib/demo.ts';
+import { toTransaction, toTransactionRow, type TransactionInput } from '@/lib/mappers.ts';
 import type { Transaction } from '@/types/models.ts';
 
 interface TransactionFilter {
@@ -12,7 +13,7 @@ interface TransactionFilter {
 }
 
 function filterDemo(filter: TransactionFilter): Transaction[] {
-  let items = demoTransactions.getAll() as Transaction[];
+  let items = demoTransactions.getAll().map(toTransaction);
   if (filter.type) items = items.filter((t) => t.type === filter.type);
   if (filter.startDate) items = items.filter((t) => t.occurredOn >= filter.startDate!);
   if (filter.endDate) items = items.filter((t) => t.occurredOn <= filter.endDate!);
@@ -40,7 +41,7 @@ export function useTransactions(filter: TransactionFilter = {}) {
       if (filter.limit) query = query.limit(filter.limit);
       const { data, error } = await query;
       if (error) throw error;
-      return data as Transaction[];
+      return (data ?? []).map(toTransaction);
     },
   });
 }
@@ -48,24 +49,16 @@ export function useTransactions(filter: TransactionFilter = {}) {
 export function useCreateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (tx: {
-      type: 'expense' | 'income';
-      amount: number;
-      currency: string;
-      fx_rate: number;
-      category: string;
-      description: string;
-      occurred_on: string;
-      raw_input?: string;
-      calculation?: string;
-    }) => {
+    mutationFn: async (tx: TransactionInput) => {
       if (isDemoMode()) {
         const user = getDemoUser();
         if (!user) throw new Error('No hay sesión activa');
+        // Demo rows are stored in the model's own shape so a reload reads back
+        // exactly what the UI expects.
         return demoTransactions.insert({
-          ...tx,
-          user_id: user.id,
+          ...toTransaction(tx),
           id: crypto.randomUUID(),
+          user_id: user.id,
           createdAt: new Date().toISOString(),
         });
       }
@@ -73,14 +66,14 @@ export function useCreateTransaction() {
       if (!auth?.user) throw new Error('No hay sesión activa');
       const { data, error } = await supabase
         .from('flowfinance_transactions')
-        .insert({ ...tx, user_id: auth.user.id })
+        .insert({ ...toTransactionRow(tx), user_id: auth.user.id })
         .select('id')
         .single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -94,7 +87,7 @@ export function useDeleteTransaction() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -102,13 +95,16 @@ export function useDeleteTransaction() {
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...data }: { id: string } & Partial<Omit<Transaction, 'id' | 'createdAt' | 'user_id'>>) => {
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<TransactionInput>) => {
       if (isDemoMode()) { demoTransactions.update(id, data); return; }
-      const { error } = await supabase.from('flowfinance_transactions').update(data).eq('id', id);
+      const { error } = await supabase
+        .from('flowfinance_transactions')
+        .update(toTransactionRow(data))
+        .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.refetchQueries({ queryKey: ['transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }

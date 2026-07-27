@@ -1,19 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import { demoGoals, demoContributions } from '@/lib/demo.ts';
-import type { SavingsGoal } from '@/types/models.ts';
+import { toSavingsGoal } from '@/lib/mappers.ts';
 
 export function useSavingsGoals() {
   return useQuery({
     queryKey: ['savings-goals'],
     queryFn: async () => {
-      if (isDemoMode()) return demoGoals.getAll() as SavingsGoal[];
+      if (isDemoMode()) return demoGoals.getAll().map(toSavingsGoal);
       const { data, error } = await supabase
         .from('flowfinance_savings_goals_with_progress')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as SavingsGoal[];
+      return (data ?? []).map(toSavingsGoal);
     },
   });
 }
@@ -22,7 +22,17 @@ export function useCreateGoal() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (g: { description: string; goal_amount: number; target_date: string }) => {
-      if (isDemoMode()) return demoGoals.insert(g);
+      if (isDemoMode()) {
+        return demoGoals.insert({
+          description: g.description,
+          goalAmount: g.goal_amount,
+          targetDate: g.target_date,
+          status: 'active',
+          currentSavedAmount: 0,
+          remainingAmount: g.goal_amount,
+          progressPct: 0,
+        });
+      }
       const { data: auth } = await supabase.auth.getUser();
       if (!auth.user) throw new Error('No hay sesión activa');
       const { data, error } = await supabase

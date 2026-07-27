@@ -33,5 +33,15 @@
 
   body {
     @apply bg-background text-foreground;
+    /* The app owns its scrolling (see Layout); the document itself never scrolls. */
+    overscroll-behavior-y: none;
+  }
+}
+
+@layer utilities {
+  /* The NavBar referenced this class but it was never defined, so the home
+     indicator on iPhones sat on top of the tabs. */
+  .safe-area-pb {
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 }

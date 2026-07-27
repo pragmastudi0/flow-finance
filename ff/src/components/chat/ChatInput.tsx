@@ -49,13 +49,13 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
   };
 
   return (
-    <div className="border-t bg-background px-4 py-3">
-      <div className="mx-auto flex max-w-2xl items-center gap-2">
+    <div className="sticky bottom-0 z-20 border-t bg-background/95 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
+      <div className="mx-auto flex max-w-2xl items-center gap-1.5 sm:gap-2">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={loading}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:opacity-50 sm:h-12 sm:w-12"
           aria-label="Subir comprobante"
         >
           <Camera className="h-5 w-5" />
@@ -69,7 +69,9 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
           onChange={handleFileChange}
         />
 
-        <div className="relative flex-1">
+        {/* 16px text on mobile: anything smaller makes iOS Safari zoom the page
+            on focus, and the layout never recovers. */}
+        <div className="relative min-w-0 flex-1">
           <input
             ref={inputRef}
             type="text"
@@ -78,7 +80,7 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
             onKeyDown={handleKeyDown}
             placeholder={placeholders[placeholderIndex]}
             disabled={loading}
-            className="flex h-12 w-full rounded-2xl border border-input bg-muted/50 px-4 pr-12 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
+            className="flex h-11 w-full rounded-2xl border border-input bg-muted/50 px-4 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 sm:h-12 sm:text-sm"
           />
         </div>
 
@@ -87,7 +89,7 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
           onClick={handleSubmit}
           disabled={!value.trim() || loading}
           className={cn(
-            'flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white transition-colors',
+            'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors sm:h-12 sm:w-12',
             value.trim() && !loading
               ? 'bg-primary hover:bg-primary/90'
               : 'bg-muted-foreground/30',

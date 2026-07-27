@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import { fetchBlueSellRate } from '@/lib/exchangeRateApi.ts';
+import { toExchangeRateConfig, toExchangeRateEntry } from '@/lib/mappers.ts';
 import type { ExchangeRateConfig, ExchangeRateEntry } from '@/types/models.ts';
 
 export function useBlueRate() {
@@ -34,7 +35,7 @@ export function useExchangeRateConfig() {
         .select('*')
         .single();
       if (error && error.code !== 'PGRST116') throw error;
-      return data as ExchangeRateConfig | null;
+      return toExchangeRateConfig(data);
     },
   });
 }
@@ -83,7 +84,7 @@ export function useExchangeRateHistory() {
         .order('captured_at', { ascending: false })
         .limit(30);
       if (error) throw error;
-      return data as ExchangeRateEntry[];
+      return (data ?? []).map(toExchangeRateEntry);
     },
   });
 }

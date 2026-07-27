@@ -7,8 +7,16 @@ export function formatCurrency(amount: number, currency: string = 'ARS'): string
   }).format(amount);
 }
 
+/** `yyyy-MM-dd` → local noon, so timezones never shift the day. Null when unusable. */
+function parseDay(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const date = new Date(dateStr.length === 10 ? `${dateStr}T12:00:00` : dateStr);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function formatDate(dateStr: string): string {
-  const date = new Date(dateStr + 'T12:00:00');
+  const date = parseDay(dateStr);
+  if (!date) return '';
   return new Intl.DateTimeFormat('es-AR', {
     day: 'numeric',
     month: 'short',
@@ -16,7 +24,8 @@ export function formatDate(dateStr: string): string {
 }
 
 export function formatDateFull(dateStr: string): string {
-  const date = new Date(dateStr + 'T12:00:00');
+  const date = parseDay(dateStr);
+  if (!date) return '';
   return new Intl.DateTimeFormat('es-AR', {
     weekday: 'long',
     day: 'numeric',

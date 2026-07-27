@@ -24,8 +24,12 @@ const queryClient = new QueryClient({
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-[100dvh] flex-col">
-      <div className="flex-1 min-h-0">{children}</div>
+    <div className="flex h-[100dvh] flex-col overflow-hidden">
+      {/* The single scroll container of the app: pages lay themselves out with
+          `min-h-full` and never open a second nested scroller. */}
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        {children}
+      </main>
       <NavBar />
     </div>
   );
@@ -146,7 +150,8 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>
-        <Toaster position="top-center" richColors />
+        {/* Short-lived: it sits over the header on phones. */}
+        <Toaster position="top-center" richColors toastOptions={{ duration: 2000 }} />
       </LanguageProvider>
     </QueryClientProvider>
   );

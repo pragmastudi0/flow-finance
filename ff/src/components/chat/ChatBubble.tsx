@@ -54,7 +54,7 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
       />
 
       <div className="ml-3 flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-sm font-medium text-muted-foreground">
             {categoryLabel(tx.category)}
           </span>
@@ -72,20 +72,15 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
         <span className="text-xs text-muted-foreground">{formatDate(dateStr)}</span>
       </div>
 
-      <div
-        className={cn(
-          'flex shrink-0 items-center gap-2',
-          saved
-            ? 'absolute right-2 top-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity'
-            : 'ml-2',
-        )}
-      >
+      {/* In flow, never absolutely positioned: overlaying the card put the
+          edit/delete buttons right on top of the amount on phones. */}
+      <div className="ml-1 flex shrink-0 flex-col items-center justify-center gap-1">
         {saved ? (
           <>
             {onEdit && (
               <button
                 onClick={() => onEdit(tx)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 aria-label="Editar"
               >
                 <Pencil className="h-4 w-4" />
@@ -94,7 +89,7 @@ export function ChatBubble({ transaction: tx, onDelete, onEdit }: ChatBubbleProp
             {onDelete && (
               <button
                 onClick={() => onDelete(tx.id)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 aria-label="Eliminar"
               >
                 <Trash2 className="h-4 w-4" />

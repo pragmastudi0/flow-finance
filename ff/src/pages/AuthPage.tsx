@@ -77,7 +77,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-gradient-to-br from-background to-muted/30 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
