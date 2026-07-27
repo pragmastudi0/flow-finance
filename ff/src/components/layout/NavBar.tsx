@@ -16,7 +16,7 @@ export function NavBar() {
   const location = useLocation();
 
   return (
-    <nav className="shrink-0 border-t bg-background px-2 pb-3 pt-2 safe-area-pb">
+    <nav className="safe-area-pb shrink-0 border-t bg-background px-2 pt-2">
       <div className="mx-auto flex max-w-lg items-center justify-around">
         {NAV_ITEMS.map(({ path, labelKey, icon: Icon }) => {
           const active = location.pathname === path;

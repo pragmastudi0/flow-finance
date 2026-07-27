@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import { demoCategories, demoLearnings } from '@/lib/demo.ts';
-import type { Category, CategoryLearning } from '@/types/models.ts';
+import { toCategory, toCategoryLearning } from '@/lib/mappers.ts';
 import type { TxType } from '@/domain/categories.ts';
 
 export function useUserCategories(type?: TxType) {
@@ -9,7 +9,7 @@ export function useUserCategories(type?: TxType) {
     queryKey: ['user-categories', type],
     queryFn: async () => {
       if (isDemoMode()) {
-        let items = demoCategories.getAll() as Category[];
+        let items = demoCategories.getAll().map(toCategory);
         if (type) items = items.filter((c) => c.type === type);
         return items;
       }
@@ -17,7 +17,7 @@ export function useUserCategories(type?: TxType) {
       if (type) query = query.eq('type', type);
       const { data, error } = await query;
       if (error) throw error;
-      return data as Category[];
+      return (data ?? []).map(toCategory);
     },
   });
 }
@@ -54,7 +54,7 @@ export function useCategoryLearnings(type?: TxType) {
     queryKey: ['category-learnings', type],
     queryFn: async () => {
       if (isDemoMode()) {
-        let items = demoLearnings.getAll() as CategoryLearning[];
+        let items = demoLearnings.getAll().map(toCategoryLearning);
         if (type) items = items.filter((l) => l.type === type);
         return items;
       }
@@ -62,7 +62,7 @@ export function useCategoryLearnings(type?: TxType) {
       if (type) query = query.eq('type', type);
       const { data, error } = await query;
       if (error) throw error;
-      return data as CategoryLearning[];
+      return (data ?? []).map(toCategoryLearning);
     },
   });
 }

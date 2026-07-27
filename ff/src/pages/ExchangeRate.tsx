@@ -69,7 +69,7 @@ export default function ExchangeRate() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
+      className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
     >
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-center gap-3">

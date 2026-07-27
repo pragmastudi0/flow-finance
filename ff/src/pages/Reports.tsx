@@ -8,6 +8,7 @@ import {
   format,
   eachDayOfInterval,
 } from 'date-fns';
+import { enUS, es } from 'date-fns/locale';
 import {
   BarChart,
   Bar,
@@ -58,8 +59,9 @@ function getDateRange(period: Period): { start: string; end: string } {
 }
 
 export default function Reports() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const categoryLabel = useCategoryLabel();
+  const dateLocale = language === 'es' ? es : enUS;
   const [period, setPeriod] = useState<Period>('month');
   const [chartView, setChartView] = useState<'pie' | 'bar'>('pie');
 
@@ -104,7 +106,11 @@ export default function Reports() {
     if (period === 'all' || period === 'year') {
       const map = new Map<string, number>();
       expenses.forEach((tx) => {
-        const monthKey = tx.occurredOn ? format(new Date(tx.occurredOn), 'MMM') : '?';
+        // Parsed at local noon: `new Date('2026-07-01')` is UTC midnight, which
+        // lands on the previous month in AR time.
+        const monthKey = tx.occurredOn
+          ? format(new Date(`${tx.occurredOn}T12:00:00`), 'MMM', { locale: dateLocale })
+          : '?';
         map.set(monthKey, (map.get(monthKey) || 0) + tx.amount * (tx.fxRate ?? 1));
       });
       return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
@@ -140,15 +146,15 @@ export default function Reports() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
+      className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
     >
       <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{t('reportsTitle')}</h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{t('reportsTitle')}</h1>
             <p className="text-sm text-slate-500">{t('reportsSubtitle')}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Link to="/Savings">
               <Button variant="outline">
                 <Target className="h-4 w-4" />
@@ -167,7 +173,7 @@ export default function Reports() {
           </div>
         </div>
 
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+        <div className="flex w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 sm:w-fit">
           {PERIODS.map((p) => (
             <button
               key={p}
