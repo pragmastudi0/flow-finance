@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,8 +18,7 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   if (isLoggedIn()) {
-    navigate('/', { replace: true });
-    return null;
+    return <Navigate to="/" replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
