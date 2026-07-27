@@ -60,7 +60,8 @@ export default function AuthPage() {
         if (mode === 'signup') {
           const { error } = await supabase.auth.signUp({ email, password });
           if (error) throw error;
-          toast.success('Revisá tu email para confirmar la cuenta');
+          await supabase.auth.signInWithPassword({ email, password });
+          toast.success('Cuenta creada');
         } else {
           const { error } = await supabase.auth.signInWithPassword({ email, password });
           if (error) throw error;
