@@ -24,8 +24,8 @@ const queryClient = new QueryClient({
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen flex-col">
-      <div className="flex-1 overflow-y-auto">{children}</div>
+    <div className="flex h-[100dvh] flex-col">
+      <div className="flex-1 min-h-0">{children}</div>
       <NavBar />
     </div>
   );

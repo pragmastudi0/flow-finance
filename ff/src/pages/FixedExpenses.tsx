@@ -86,7 +86,7 @@ export default function FixedExpenses() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/Settings">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -144,14 +144,14 @@ export default function FixedExpenses() {
                   <label className="text-sm font-medium text-slate-700">
                     {t('category')}
                   </label>
-                  <div className="mt-1 flex flex-wrap gap-1.5">
+                  <div className="mt-1 flex flex-wrap gap-2">
                     {EXPENSE_CATEGORIES.map((cat) => (
                       <button
                         key={cat}
                         type="button"
                         onClick={() => setCategory(cat)}
                         className={cn(
-                          'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                          'rounded-md px-3 py-2 text-sm font-medium transition-colors',
                           category === cat
                             ? 'bg-slate-800 text-white'
                             : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
@@ -170,7 +170,6 @@ export default function FixedExpenses() {
                     <Button
                       type="button"
                       variant={recurrence === 'subscription' ? 'default' : 'outline'}
-                      size="sm"
                       onClick={() => setRecurrence('subscription')}
                     >
                       {t('subscriptionOption')}
@@ -178,7 +177,6 @@ export default function FixedExpenses() {
                     <Button
                       type="button"
                       variant={recurrence === 'installments' ? 'default' : 'outline'}
-                      size="sm"
                       onClick={() => setRecurrence('installments')}
                     >
                       {t('installmentsOption')}
@@ -278,12 +276,13 @@ export default function FixedExpenses() {
                   </span>
                   <button
                     onClick={() => handleToggle(fe.id, fe.status)}
-                    className="rounded p-1 text-slate-400 hover:text-slate-600"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600"
+                    aria-label={fe.status === 'active' ? 'Cancelar' : 'Activar'}
                   >
                     {fe.status === 'active' ? (
-                      <ToggleRight className="h-5 w-5 text-emerald-500" />
+                      <ToggleRight className="h-6 w-6 text-emerald-500" />
                     ) : (
-                      <ToggleLeft className="h-5 w-5" />
+                      <ToggleLeft className="h-6 w-6" />
                     )}
                   </button>
                 </div>

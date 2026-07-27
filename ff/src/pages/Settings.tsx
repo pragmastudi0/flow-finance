@@ -60,9 +60,9 @@ export default function Settings() {
       <div className="mx-auto max-w-2xl space-y-6">
         <div className="flex items-center gap-3">
           <Link to={ROUTES.reports}>
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">{t('settings')}</h1>
@@ -82,14 +82,12 @@ export default function Settings() {
             <div className="flex items-center gap-3">
               <Button
                 variant={language === 'es' ? 'default' : 'outline'}
-                size="sm"
                 onClick={() => setLanguage('es')}
               >
                 ES
               </Button>
               <Button
                 variant={language === 'en' ? 'default' : 'outline'}
-                size="sm"
                 onClick={() => setLanguage('en')}
               >
                 EN
@@ -108,7 +106,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <Link to={ROUTES.categories}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline">
                 {t('configure')}
               </Button>
             </Link>
@@ -125,7 +123,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <Link to={ROUTES.fixedExpenses}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline">
                 {t('configure')}
               </Button>
             </Link>
@@ -142,7 +140,7 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <Link to={ROUTES.exchangeRate}>
-              <Button variant="outline" size="sm">
+              <Button variant="outline">
                 {t('configure')}
               </Button>
             </Link>

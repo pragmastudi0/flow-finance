@@ -186,11 +186,11 @@ export default function Home() {
   const groupKeys = Object.keys(groups);
 
   return (
-    <div className="flex h-full flex-col bg-gradient-to-b from-background to-muted/30">
-      <header className="shrink-0 border-b bg-background/80 px-4 py-3 backdrop-blur-sm">
+    <div className="flex flex-col bg-gradient-to-b from-background to-muted/30 min-h-0">
+      <header className="sticky top-0 z-10 shrink-0 border-b bg-background/80 px-4 py-2 backdrop-blur-sm">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold">{t('appTitle')}</h1>
+            <h1 className="text-base font-bold">{t('appTitle')}</h1>
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               <span>
                 {t('totalSpent')}:{' '}
@@ -210,7 +210,7 @@ export default function Home() {
             <button
               onClick={() => { setMode('expense'); setPending(null); }}
               className={cn(
-                'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                 mode === 'expense'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -221,7 +221,7 @@ export default function Home() {
             <button
               onClick={() => { setMode('income'); setPending(null); }}
               className={cn(
-                'rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
                 mode === 'income'
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -233,12 +233,13 @@ export default function Home() {
         </div>
       </header>
 
-      <main ref={scrollRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl py-4">
           <div className="flex items-center justify-between px-4 pb-2">
             <button
               onClick={prevMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              aria-label="Mes anterior"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
@@ -247,7 +248,7 @@ export default function Home() {
               {!isCurrentMonth && (
                 <button
                   onClick={() => setSelectedMonth(new Date(now.getFullYear(), now.getMonth(), 1))}
-                  className="text-xs text-primary hover:underline"
+                  className="min-h-[44px] px-2 text-xs font-medium text-primary hover:underline"
                 >
                   {language === 'es' ? 'Hoy' : 'Today'}
                 </button>
@@ -255,7 +256,8 @@ export default function Home() {
             </div>
             <button
               onClick={nextMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              aria-label="Mes siguiente"
             >
               <ChevronRight className="h-5 w-5" />
             </button>
@@ -316,7 +318,7 @@ export default function Home() {
                     return (
                       <div key={day}>
                         <h3 className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          {format(new Date(day + 'T12:00:00'), 'd MMMM', { locale: language === 'es' ? undefined : undefined })}
+                          {format(new Date(day + 'T12:00:00'), 'd MMMM')}
                         </h3>
                         <TransactionList
                           transactions={txs}
@@ -330,7 +332,7 @@ export default function Home() {
             </div>
           )}
         </div>
-      </main>
+      </div>
 
       <ChatInput onSend={handleSend} onUpload={handleUpload} loading={createTx.isPending} />
 

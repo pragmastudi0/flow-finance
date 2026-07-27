@@ -87,7 +87,7 @@ export default function Savings() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link to="/Reports">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             </Link>
@@ -232,14 +232,13 @@ export default function Savings() {
                       <DialogTrigger asChild>
                         <Button
                           variant="outline"
-                          size="sm"
                           className="w-full"
                           onClick={() => {
                             setContributeId(goal.id);
                             setContributeOpen(true);
                           }}
                         >
-                          <Plus className="h-3 w-3" />
+                          <Plus className="h-4 w-4" />
                           {t('add')}
                         </Button>
                       </DialogTrigger>

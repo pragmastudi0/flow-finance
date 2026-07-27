@@ -25,6 +25,7 @@ function filterDemo(filter: TransactionFilter): Transaction[] {
 export function useTransactions(filter: TransactionFilter = {}) {
   return useQuery({
     queryKey: ['transactions', filter],
+    staleTime: 0,
     queryFn: async () => {
       if (isDemoMode()) return filterDemo(filter);
       let query = supabase
@@ -79,7 +80,7 @@ export function useCreateTransaction() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.refetchQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -93,7 +94,7 @@ export function useDeleteTransaction() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.refetchQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -107,7 +108,7 @@ export function useUpdateTransaction() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      queryClient.refetchQueries({ queryKey: ['transactions'] });
     },
   });
 }
