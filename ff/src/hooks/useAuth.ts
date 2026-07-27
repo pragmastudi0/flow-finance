@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
-import { getDemoUser, seedDemoData, logoutUser, isLoggedIn, getSessionEmail } from '@/lib/demo.ts';
+import { getDemoUser, logoutUser, isLoggedIn, getSessionEmail } from '@/lib/demo.ts';
 import type { User } from '@supabase/supabase-js';
 
 export function useUser() {
@@ -10,7 +10,6 @@ export function useUser() {
   useEffect(() => {
     if (isDemoMode()) {
       if (isLoggedIn()) {
-        seedDemoData();
         setUser(getDemoUser() as unknown as User);
       }
       setLoading(false);
