@@ -1,0 +1,50 @@
+{
+  "version": "5",
+  "specifiers": {
+    "jsr:@deno/installer-shell-setup@*": "0.3.4",
+    "jsr:@supabase/supabase-js@2": "2.110.8"
+  },
+  "jsr": {
+    "@deno/installer-shell-setup@0.3.4": {
+      "integrity": "48665d1a737d487cce6874bc97bba70a5aeffa7053aca3f60df93c6fab8963b4"
+    },
+    "@supabase/supabase-js@2.110.8": {
+      "integrity": "cca2005b5b6f7b52c1113085528fc1cd3506d373d9e4cc304fc8fe92d4fa0e1a"
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@radix-ui/react-checkbox@^1.1.4",
+        "npm:@radix-ui/react-dialog@^1.1.6",
+        "npm:@radix-ui/react-popover@^1.1.6",
+        "npm:@radix-ui/react-select@^2.1.6",
+        "npm:@radix-ui/react-slot@^1.1.2",
+        "npm:@supabase/supabase-js@^2.49.0",
+        "npm:@tanstack/react-query@^5.66.0",
+        "npm:@types/node@^22.13.0",
+        "npm:@types/react-dom@^18.3.5",
+        "npm:@types/react@^18.3.18",
+        "npm:@vitejs/plugin-react@^4.3.4",
+        "npm:autoprefixer@^10.4.20",
+        "npm:class-variance-authority@~0.7.1",
+        "npm:clsx@^2.1.1",
+        "npm:date-fns@^4.1.0",
+        "npm:framer-motion@^12.4.0",
+        "npm:lucide-react@0.475",
+        "npm:postcss@^8.5.2",
+        "npm:react-dom@^18.3.1",
+        "npm:react-router-dom@^7.1.5",
+        "npm:react@^18.3.1",
+        "npm:recharts@^2.15.1",
+        "npm:sonner@^1.7.4",
+        "npm:tailwind-merge@^3.0.1",
+        "npm:tailwindcss-animate@^1.0.7",
+        "npm:tailwindcss@^3.4.17",
+        "npm:typescript@^5.7.3",
+        "npm:vite@^6.1.0",
+        "npm:xlsx@~0.18.5"
+      ]
+    }
+  }
+}
