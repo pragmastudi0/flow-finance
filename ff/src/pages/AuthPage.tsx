@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -7,17 +7,39 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase, isDemoMode } from '@/lib/supabase';
 import { registerUser, loginUser, isLoggedIn } from '@/lib/demo';
 
 export default function AuthPage() {
-  const navigate = useNavigate();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [hasSession, setHasSession] = useState(false);
 
-  if (isLoggedIn()) {
+  useEffect(() => {
+    if (isDemoMode()) {
+      setHasSession(isLoggedIn());
+      setCheckingSession(false);
+    } else {
+      supabase.auth.getUser().then(({ data }) => {
+        setHasSession(!!data?.user);
+        setCheckingSession(false);
+      });
+    }
+  }, []);
+
+  if (checkingSession) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (hasSession) {
     return <Navigate to="/" replace />;
   }
 
@@ -25,14 +47,27 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      if (mode === 'signup') {
-        registerUser(email, password, name || undefined);
-        toast.success('Cuenta creada');
+      if (isDemoMode()) {
+        if (mode === 'signup') {
+          registerUser(email, password, name || undefined);
+          toast.success('Cuenta creada');
+        } else {
+          loginUser(email, password);
+          toast.success('Sesión iniciada');
+        }
+        setHasSession(true);
       } else {
-        loginUser(email, password);
-        toast.success('Sesión iniciada');
+        if (mode === 'signup') {
+          const { error } = await supabase.auth.signUp({ email, password });
+          if (error) throw error;
+          toast.success('Revisá tu email para confirmar la cuenta');
+        } else {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          toast.success('Sesión iniciada');
+        }
+        setHasSession(true);
       }
-      navigate('/', { replace: true });
     } catch (err: any) {
       toast.error(err.message);
     } finally {
