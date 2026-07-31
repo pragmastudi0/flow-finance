@@ -7,9 +7,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import {
+  useBlueRate,
   useExchangeRateConfig,
   useSaveExchangeRateConfig,
   useExchangeRateHistory,
+  useUpdateBlueRate,
 } from '@/hooks/useExchangeRate';
 import { formatCurrency, formatDateFull } from '@/lib/format';
 import {
@@ -26,7 +28,9 @@ export default function ExchangeRate() {
   const { t, language } = useLanguage();
   const { data: config } = useExchangeRateConfig();
   const { data: history = [] } = useExchangeRateHistory();
+  const { data: rate, isLoading: rateLoading, refetch: refetchRate, error: rateError } = useBlueRate();
   const saveConfig = useSaveExchangeRateConfig();
+  const updateRate = useUpdateBlueRate();
 
   const [sourceUrl, setSourceUrl] = useState('');
   const [refreshMinutes, setRefreshMinutes] = useState('60');
@@ -59,10 +63,31 @@ export default function ExchangeRate() {
     toast.success(t('configurationSaved'));
   };
 
-  const handleUpdateNow = () => {
-    toast.success(
-      language === 'es' ? 'Actualización solicitada' : 'Update requested',
-    );
+  const handleUpdateNow = async () => {
+    try {
+      const { data: freshRate } = await refetchRate();
+      if (freshRate) {
+        await updateRate.mutateAsync({
+          rate: freshRate,
+          status: 'ok',
+        });
+        toast.success(
+          language === 'es' ? 'Valor actualizado correctamente' : 'Value updated successfully',
+        );
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      await updateRate.mutateAsync({
+        rate: 0,
+        status: 'error',
+        error: errorMsg,
+      });
+      toast.error(
+        language === 'es'
+          ? `Error al actualizar: ${errorMsg}`
+          : `Error updating: ${errorMsg}`,
+      );
+    }
   };
 
   return (
@@ -97,14 +122,26 @@ export default function ExchangeRate() {
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-3xl font-bold text-slate-900">
-                  {config?.lastValue != null
-                    ? formatCurrency(config.lastValue, 'ARS')
-                    : t('noValueYet')}
+                  {rate != null
+                    ? formatCurrency(rate, 'ARS')
+                    : config?.lastValue != null
+                      ? formatCurrency(config.lastValue, 'ARS')
+                      : t('noValueYet')}
                 </p>
-                {config?.lastUpdatedAt && (
+                {rateLoading && (
+                  <p className="mt-1 text-xs text-slate-400">
+                    {language === 'es' ? 'Cargando...' : 'Loading...'}
+                  </p>
+                )}
+                {!rateLoading && (rate != null || config?.lastUpdatedAt) && (
                   <p className="mt-1 text-xs text-slate-400">
                     {t('lastUpdated')}
-                    {formatDateFull(config.lastUpdatedAt)}
+                    {formatDateFull(rate != null ? new Date().toISOString() : config?.lastUpdatedAt || '')}
+                  </p>
+                )}
+                {rateError && (
+                  <p className="mt-1 text-xs text-red-500">
+                    {language === 'es' ? 'Error al cargar' : 'Error loading'}
                   </p>
                 )}
               </div>
@@ -112,8 +149,9 @@ export default function ExchangeRate() {
                 variant="outline"
                 size="sm"
                 onClick={handleUpdateNow}
+                disabled={rateLoading || updateRate.isPending}
               >
-                <RefreshCw className="h-4 w-4" />
+                <RefreshCw className={cn('h-4 w-4', rateLoading || updateRate.isPending ? 'animate-spin' : '')} />
                 {t('updateNow')}
               </Button>
             </div>

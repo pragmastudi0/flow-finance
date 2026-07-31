@@ -88,3 +88,25 @@ export function useExchangeRateHistory() {
     },
   });
 }
+
+export function useUpdateBlueRate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: { rate: number; status: 'ok' | 'error'; error?: string }) => {
+      if (isDemoMode()) return;
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) throw new Error('No hay sesión activa');
+      const { error } = await supabase
+        .from('flowfinance_exchange_rate_configs')
+        .update({
+          last_value: params.rate,
+          last_updated_at: new Date().toISOString(),
+          last_status: params.status,
+          last_error: params.error ?? null,
+        })
+        .eq('user_id', auth.user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['exchange-rate-config'] }),
+  });
+}
