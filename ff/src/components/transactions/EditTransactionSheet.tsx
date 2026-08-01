@@ -24,11 +24,12 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   transaction: Transaction | null;
   onSave: (data: Partial<Transaction>) => Promise<void>;
+  onDelete?: (tx: Transaction) => void;
   loading?: boolean;
 }
 
 export function EditTransactionSheet({
-  open, onOpenChange, transaction, onSave, loading,
+  open, onOpenChange, transaction, onSave, onDelete, loading,
 }: Props) {
   const { t, language } = useLanguage();
   const categoryLabel = useCategoryLabel();
@@ -154,6 +155,21 @@ export function EditTransactionSheet({
           <Button className="w-full" onClick={handleSave} loading={loading}>
             {t('save')}
           </Button>
+
+          {/* Deleting is otherwise reachable only by swiping a row, which no
+              keyboard or pointer user can discover. */}
+          {onDelete && transaction && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                onDelete(transaction);
+              }}
+              className="w-full py-2 text-center text-[15px] font-medium text-expense"
+            >
+              {t('delete')}
+            </button>
+          )}
         </div>
       </SheetContent>
     </Sheet>

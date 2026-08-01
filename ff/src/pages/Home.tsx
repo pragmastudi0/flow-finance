@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { isThisWeek, isToday, format } from 'date-fns';
+import { format } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/cn';
+
 import { useLanguage } from '@/i18n/LanguageProvider';
 import {
   useTransactions,
@@ -15,6 +13,8 @@ import {
 } from '@/hooks/useTransactions';
 import { useCategoryLearnings } from '@/hooks/useCategories';
 import { useBlueRate } from '@/hooks/useExchangeRate';
+import { useMonthFilter } from '@/hooks/useMonthFilter';
+import { groupTransactions, parseDay } from '@/domain/grouping';
 import { parseEntry, type ParsedTransaction } from '@/domain/parser';
 import { analyzeDocument, confirmTransaction, DocumentError } from '@/lib/receipts';
 import { isDemoMode } from '@/lib/supabase';
@@ -22,10 +22,11 @@ import type { AnalyzedDocument } from '@/lib/receipts';
 import { baseAmount } from '@/types/models';
 import type { Transaction } from '@/types/models';
 import type { TxType } from '@/domain/categories';
-import { formatCurrency } from '@/lib/format';
-import { ChatInput } from '@/components/chat/ChatInput';
-import { ChatBubble } from '@/components/chat/ChatBubble';
-import { TransactionList } from '@/components/chat/TransactionList';
+import { PageShell } from '@/components/layout/PageShell';
+import { MoneyHeader, type TxFilter } from '@/components/money/MoneyHeader';
+import { TransactionList } from '@/components/money/TransactionList';
+import { FloatingActionButton } from '@/components/money/FloatingActionButton';
+import { BottomSheetAddExpense } from '@/components/money/BottomSheetAddExpense';
 import { DocumentAnalysisSheet } from '@/components/analysis/DocumentAnalysisSheet';
 import { EditTransactionSheet } from '@/components/transactions/EditTransactionSheet';
 
@@ -38,77 +39,48 @@ export default function Home() {
   const updateTx = useUpdateTransaction();
 
   const [mode, setMode] = useState<TxType>('expense');
+  const [filter, setFilter] = useState<TxFilter>('all');
   const { data: learnings } = useCategoryLearnings(mode);
   const { data: usdRate } = useBlueRate();
   const [pending, setPending] = useState<ParsedTransaction | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [extraction, setExtraction] = useState<AnalyzedDocument | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 
-  const now = useMemo(() => new Date(), []);
-  const [selectedMonth, setSelectedMonth] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+  const month = useMonthFilter();
 
-  const pendingRef = useRef<HTMLDivElement>(null);
+  const monthTransactions = useMemo(
+    () => (transactions ?? []).filter(month.matches),
+    [transactions, month],
+  );
 
-  useEffect(() => {
-    if (pending) {
-      // Scrolls whichever ancestor actually scrolls, so it keeps working
-      // regardless of where the scroll container lives.
-      pendingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const summary = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    for (const tx of monthTransactions) {
+      // Always the base (ARS) value — USD entries carry a non-1 fxRate.
+      if (tx.type === 'income') income += baseAmount(tx);
+      else expense += baseAmount(tx);
     }
-  }, [pending]);
-
-  const monthTransactions = useMemo(() => {
-    if (!transactions) return [];
-    return transactions.filter((tx) => {
-      const d = new Date(tx.occurredOn + 'T12:00:00');
-      return d.getMonth() === selectedMonth.getMonth() && d.getFullYear() === selectedMonth.getFullYear();
-    });
-  }, [transactions, selectedMonth]);
-
-  const isCurrentMonth = selectedMonth.getMonth() === now.getMonth() && selectedMonth.getFullYear() === now.getFullYear();
-
-  const monthSummary = useMemo(() => {
-    const spent = monthTransactions.filter((tx) => tx.type === 'expense').reduce((a, t) => a + baseAmount(t), 0);
-    const earned = monthTransactions.filter((tx) => tx.type === 'income').reduce((a, t) => a + baseAmount(t), 0);
-    return { spent, earned };
+    return { income, expense };
   }, [monthTransactions]);
 
-  const groups = useMemo(() => {
-    if (isCurrentMonth) {
-      const g: Record<string, Transaction[]> = { today: [], thisWeek: [], thisMonth: [] };
-      for (const tx of monthTransactions) {
-        const d = new Date(tx.occurredOn + 'T12:00:00');
-        if (isToday(d)) g.today.push(tx);
-        else if (isThisWeek(d, { weekStartsOn: 1 })) g.thisWeek.push(tx);
-        else g.thisMonth.push(tx);
-      }
-      return g;
-    }
-    const g: Record<string, Transaction[]> = {};
-    for (const tx of monthTransactions) {
-      if (!g[tx.occurredOn]) g[tx.occurredOn] = [];
-      g[tx.occurredOn].push(tx);
-    }
-    return g;
-  }, [monthTransactions, isCurrentMonth]);
+  const visible = useMemo(
+    () => (filter === 'all' ? monthTransactions : monthTransactions.filter((tx) => tx.type === filter)),
+    [monthTransactions, filter],
+  );
 
-  /** The empty state is about the month on screen, not the whole history. */
-  const hasAny = !!pending || monthTransactions.length > 0;
+  const groups = useMemo(
+    () => groupTransactions(visible, { isCurrentMonth: month.isCurrentMonth, now: new Date() }),
+    [visible, month.isCurrentMonth],
+  );
+
   const hasAnyEver = !!transactions && transactions.length > 0;
 
-  const prevMonth = () => setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  const nextMonth = () => setSelectedMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-
-  /** Brings the month containing `isoDate` (yyyy-MM-dd) into view. */
-  const showMonthOf = (isoDate: string) => {
-    const d = new Date(`${isoDate}T12:00:00`);
-    if (Number.isNaN(d.getTime())) return;
-    setSelectedMonth(new Date(d.getFullYear(), d.getMonth(), 1));
-  };
-
-  const handleSend = (text: string) => {
+  /** True when the text was understood; the sheet clears its field on that. */
+  const handleSend = (text: string): boolean => {
     // Without `learnings` the per-user categories were ignored, and without
     // `usdRate` every USD entry was rejected outright.
     const parsed = parseEntry(text, {
@@ -118,7 +90,7 @@ export default function Home() {
     });
     if (parsed) {
       setPending(parsed);
-      return;
+      return true;
     }
     const isUsd = /\busd\b|u\$s/i.test(text);
     if (isUsd && !usdRate) {
@@ -127,9 +99,10 @@ export default function Home() {
           ? 'No pude obtener la cotización del dólar. Probá de nuevo en unos segundos.'
           : "Couldn't fetch the USD rate. Try again in a few seconds.",
       );
-      return;
+      return false;
     }
     toast.error(t('couldNotDetect'));
+    return false;
   };
 
   const handleConfirmPending = async () => {
@@ -147,9 +120,10 @@ export default function Home() {
         calculation: pending.calculation ?? null,
       });
       setPending(null);
+      setAddOpen(false);
       // A transaction saved while browsing another month would otherwise land
       // off-screen.
-      showMonthOf(pending.date);
+      month.showMonthOf(pending.date);
       toast.success(
         language === 'es'
           ? pending.type === 'expense' ? 'Gasto guardado' : 'Ingreso guardado'
@@ -173,6 +147,7 @@ export default function Home() {
       setPreviewUrl(URL.createObjectURL(file));
       const result = await analyzeDocument(file);
       setExtraction(result);
+      setAddOpen(false);
       setSheetOpen(true);
     } catch (e) {
       setPreviewUrl(null);
@@ -195,23 +170,38 @@ export default function Home() {
       setPreviewUrl(null);
       // Written outside React Query, so the list has to be told to refetch.
       await queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      showMonthOf(data.occurredOn);
+      month.showMonthOf(data.occurredOn);
       toast.success(language === 'es' ? 'Comprobante guardado' : 'Receipt saved');
     } catch {
       toast.error(language === 'es' ? 'Error al confirmar' : 'Confirmation error');
     }
   };
 
-  const handleDelete = (id: string) => {
-    deleteTx.mutate(id, {
+  const handleDelete = (tx: Transaction) => {
+    deleteTx.mutate(tx.id, {
       onSuccess: () =>
-        toast.success(language === 'es' ? 'Movimiento eliminado' : 'Transaction deleted'),
+        // A long swipe deletes outright, and the delete is permanent — without
+        // an undo an accidental gesture silently costs data.
+        toast.success(language === 'es' ? 'Movimiento eliminado' : 'Transaction deleted', {
+          action: {
+            label: t('undo'),
+            onClick: () => {
+              createTx.mutate({
+                type: tx.type,
+                amount: tx.amount,
+                currency: tx.currency,
+                fxRate: tx.fxRate,
+                category: tx.category,
+                description: tx.description,
+                occurredOn: tx.occurredOn,
+                rawInput: tx.rawInput,
+                calculation: tx.calculation,
+              });
+            },
+          },
+        }),
       onError: () => toast.error(language === 'es' ? 'Error al eliminar' : 'Delete error'),
     });
-  };
-
-  const handleEdit = (tx: Transaction) => {
-    setEditingTx(tx);
   };
 
   const handleSaveEdit = async (data: Partial<Transaction>) => {
@@ -237,191 +227,71 @@ export default function Home() {
       }
       await updateTx.mutateAsync({ id: editingTx.id, ...data, fxRate });
       setEditingTx(null);
-      if (data.occurredOn) showMonthOf(data.occurredOn);
+      if (data.occurredOn) month.showMonthOf(data.occurredOn);
       toast.success(language === 'es' ? 'Cambios guardados' : 'Changes saved');
     } catch {
       toast.error(language === 'es' ? 'Error al guardar' : 'Error saving');
     }
   };
 
-  // Without an explicit locale date-fns falls back to English ("July De 2026").
-  const dateLocale = language === 'es' ? es : enUS;
-  const monthLabel = format(
-    selectedMonth,
-    language === 'es' ? "MMMM 'de' yyyy" : 'MMMM yyyy',
-    { locale: dateLocale },
-  );
-
-  const periodLabel = (key: string) => {
-    if (language === 'es') {
-      if (key === 'today') return 'Hoy';
-      if (key === 'thisWeek') return 'Esta semana';
-      return 'Este mes';
-    }
-    if (key === 'today') return 'Today';
-    if (key === 'thisWeek') return 'This Week';
-    return 'This Month';
+  const groupLabel = (key: string) => {
+    if (key === 'today') return t('today');
+    if (key === 'thisWeek') return t('thisWeek');
+    if (key === 'thisMonth') return t('thisMonth');
+    return format(parseDay(key), 'd MMMM', { locale: language === 'es' ? es : enUS });
   };
 
-  const groupKeys = Object.keys(groups);
-
   return (
-    <div className="flex min-h-full flex-col bg-gradient-to-b from-background to-muted/30">
-      <header className="sticky top-0 z-20 border-b bg-background/90 px-4 py-2 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold">{t('appTitle')}</h1>
-            <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-              <span className="whitespace-nowrap">
-                {t('totalSpent')}:{' '}
-                <span className="font-semibold text-red-600">
-                  {formatCurrency(monthSummary.spent)}
-                </span>
-              </span>
-              <span className="whitespace-nowrap">
-                {t('totalEarned')}:{' '}
-                <span className="font-semibold text-green-600">
-                  {formatCurrency(monthSummary.earned)}
-                </span>
-              </span>
-            </div>
+    <>
+      <PageShell>
+        <MoneyHeader
+          month={month.month}
+          direction={month.direction}
+          isCurrentMonth={month.isCurrentMonth}
+          onPrev={month.prev}
+          onNext={month.next}
+          onToday={month.today}
+          income={summary.income}
+          expense={summary.expense}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
+
+        {isLoading ? (
+          <TransactionList groups={[]} label={groupLabel} onEdit={setEditingTx} onDelete={handleDelete} loading />
+        ) : groups.length === 0 ? (
+          <div className="px-4 py-20 text-center">
+            <p className="mx-auto max-w-xs text-[15px] leading-relaxed text-ink-tertiary">
+              {hasAnyEver ? t('noTransactionsThisMonth') : t('expenseWelcome')}
+            </p>
           </div>
-          <div className="flex shrink-0 items-center gap-1 rounded-lg border p-0.5">
-            <button
-              onClick={() => { setMode('expense'); setPending(null); }}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                mode === 'expense'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('expenses')}
-            </button>
-            <button
-              onClick={() => { setMode('income'); setPending(null); }}
-              className={cn(
-                'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                mode === 'income'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('income')}
-            </button>
-          </div>
-        </div>
-      </header>
+        ) : (
+          <TransactionList
+            groups={groups}
+            label={groupLabel}
+            onEdit={setEditingTx}
+            onDelete={handleDelete}
+          />
+        )}
+      </PageShell>
 
-      <div className="flex-1">
-        <div className="mx-auto max-w-2xl py-4">
-          <div className="flex items-center justify-between px-4 pb-2">
-            <button
-              onClick={prevMonth}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              aria-label="Mes anterior"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div className="flex items-center gap-2">
-              {/* `capitalize` would also uppercase the "de" in "julio de 2026". */}
-              <span className="text-sm font-semibold first-letter:uppercase">{monthLabel}</span>
-              {!isCurrentMonth && (
-                <button
-                  onClick={() => setSelectedMonth(new Date(now.getFullYear(), now.getMonth(), 1))}
-                  className="min-h-[44px] px-2 text-xs font-medium text-primary hover:underline"
-                >
-                  {language === 'es' ? 'Hoy' : 'Today'}
-                </button>
-              )}
-            </div>
-            <button
-              onClick={nextMonth}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-              aria-label="Mes siguiente"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
+      <FloatingActionButton onClick={() => setAddOpen(true)} label={t('addTransaction')} />
 
-          <div ref={pendingRef}>
-            <AnimatePresence>
-              {pending && (
-                <motion.div
-                  key="pending"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="px-4 pb-2"
-                >
-                  <ChatBubble
-                    transaction={pending}
-                    onEdit={handleConfirmPending}
-                    onDelete={() => setPending(null)}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {!hasAny && !isLoading && (
-            <div className="px-4 py-16 text-center">
-              <p className="text-sm text-muted-foreground">
-                {hasAnyEver
-                  ? language === 'es'
-                    ? 'No hay movimientos en este mes.'
-                    : 'No transactions this month.'
-                  : t(mode === 'expense' ? 'expenseWelcome' : 'incomeWelcome')}
-              </p>
-            </div>
-          )}
-
-          {isLoading ? (
-            <TransactionList transactions={[]} loading />
-          ) : (
-            <div className="space-y-4">
-              {isCurrentMonth ? (
-                ['today', 'thisWeek', 'thisMonth'].map((period) => {
-                  const txs = groups[period] as Transaction[] | undefined;
-                  if (!txs || txs.length === 0) return null;
-                  return (
-                    <div key={period}>
-                      <h3 className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        {periodLabel(period)}
-                      </h3>
-                      <TransactionList
-                        transactions={txs}
-                        onDelete={handleDelete}
-                        onEdit={handleEdit}
-                      />
-                    </div>
-                  );
-                })
-              ) : (
-                groupKeys
-                  .sort((a, b) => b.localeCompare(a))
-                  .map((day) => {
-                    const txs = groups[day] as Transaction[];
-                    return (
-                      <div key={day}>
-                        <h3 className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                          {format(new Date(day + 'T12:00:00'), 'd MMMM', { locale: dateLocale })}
-                        </h3>
-                        <TransactionList
-                          transactions={txs}
-                          onDelete={handleDelete}
-                          onEdit={handleEdit}
-                        />
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <ChatInput onSend={handleSend} onUpload={handleUpload} loading={createTx.isPending} />
+      <BottomSheetAddExpense
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (!open) setPending(null);
+        }}
+        type={mode}
+        onTypeChange={setMode}
+        onParse={handleSend}
+        pending={pending}
+        onConfirm={handleConfirmPending}
+        onCancelPending={() => setPending(null)}
+        onUpload={handleUpload}
+        saving={createTx.isPending}
+      />
 
       <DocumentAnalysisSheet
         open={sheetOpen}
@@ -436,8 +306,9 @@ export default function Home() {
         onOpenChange={(open) => { if (!open) setEditingTx(null); }}
         transaction={editingTx}
         onSave={handleSaveEdit}
+        onDelete={handleDelete}
         loading={updateTx.isPending}
       />
-    </div>
+    </>
   );
 }
