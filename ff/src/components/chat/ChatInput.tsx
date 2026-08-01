@@ -49,7 +49,9 @@ export function ChatInput({ onSend, onUpload, loading }: ChatInputProps) {
   };
 
   return (
-    <div className="sticky bottom-0 z-20 border-t bg-background/95 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
+    // Interim: lifted clear of the now-floating nav. This whole component is
+    // replaced by the FAB + add sheet in a later step.
+    <div className="bottom-nav-offset sticky z-20 border-t bg-background/95 px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3">
       <div className="mx-auto flex max-w-2xl items-center gap-1.5 sm:gap-2">
         <button
           type="button"

@@ -24,12 +24,16 @@ const queryClient = new QueryClient({
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden">
       {/* The single scroll container of the app: pages lay themselves out with
           `min-h-full` and never open a second nested scroller. */}
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         {children}
       </main>
+      {/* Floats over `main` rather than sitting beside it — `backdrop-blur` only
+          has something to blur if content scrolls underneath. Pages clear it
+          with `.pb-nav`. It must stay here and never move inside a page: an
+          animated ancestor with a transform would make `fixed` page-relative. */}
       <NavBar />
     </div>
   );
@@ -150,8 +154,14 @@ export default function App() {
         <BrowserRouter>
           <AppRoutes />
         </BrowserRouter>
-        {/* Short-lived: it sits over the header on phones. */}
-        <Toaster position="top-center" richColors toastOptions={{ duration: 2000 }} />
+        {/* Bottom-center, lifted clear of the floating nav. It used to sit
+            top-center, which now lands on the balance figure. The longer
+            duration is what makes the undo action on delete reachable. */}
+        <Toaster
+          position="bottom-center"
+          offset="calc(var(--nav-h) + var(--nav-gap) + env(safe-area-inset-bottom, 0px) + 1rem)"
+          toastOptions={{ duration: 4000 }}
+        />
       </LanguageProvider>
     </QueryClientProvider>
   );
