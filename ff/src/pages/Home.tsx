@@ -5,15 +5,10 @@ import { format } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
-import {
-  useTransactions,
-  useCreateTransaction,
-  useDeleteTransaction,
-  useUpdateTransaction,
-} from '@/hooks/useTransactions';
+import { useTransactions } from '@/hooks/useTransactions';
 import { useCategoryLearnings } from '@/hooks/useCategories';
-import { useBlueRate } from '@/hooks/useExchangeRate';
 import { useMonthFilter } from '@/hooks/useMonthFilter';
+import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { groupTransactions, parseDay } from '@/domain/grouping';
 import { parseEntry, type ParsedTransaction } from '@/domain/parser';
 import { analyzeDocument, confirmTransaction, DocumentError } from '@/lib/receipts';
@@ -34,22 +29,19 @@ export default function Home() {
   const { t, language } = useLanguage();
   const queryClient = useQueryClient();
   const { data: transactions, isLoading } = useTransactions();
-  const createTx = useCreateTransaction();
-  const deleteTx = useDeleteTransaction();
-  const updateTx = useUpdateTransaction();
 
   const [mode, setMode] = useState<TxType>('expense');
   const [filter, setFilter] = useState<TxFilter>('all');
-  const { data: learnings } = useCategoryLearnings(mode);
-  const { data: usdRate } = useBlueRate();
   const [pending, setPending] = useState<ParsedTransaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const [extraction, setExtraction] = useState<AnalyzedDocument | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
+  const { data: learnings } = useCategoryLearnings(mode);
   const month = useMonthFilter();
+  const actions = useTransactionActions({ showMonthOf: month.showMonthOf });
 
   const monthTransactions = useMemo(
     () => (transactions ?? []).filter(month.matches),
@@ -67,33 +59,26 @@ export default function Home() {
     return { income, expense };
   }, [monthTransactions]);
 
-  const visible = useMemo(
-    () => (filter === 'all' ? monthTransactions : monthTransactions.filter((tx) => tx.type === filter)),
-    [monthTransactions, filter],
-  );
-
-  const groups = useMemo(
-    () => groupTransactions(visible, { isCurrentMonth: month.isCurrentMonth, now: new Date() }),
-    [visible, month.isCurrentMonth],
-  );
-
-  const hasAnyEver = !!transactions && transactions.length > 0;
+  const groups = useMemo(() => {
+    const visible =
+      filter === 'all' ? monthTransactions : monthTransactions.filter((tx) => tx.type === filter);
+    return groupTransactions(visible, { isCurrentMonth: month.isCurrentMonth, now: new Date() });
+  }, [monthTransactions, filter, month.isCurrentMonth]);
 
   /** True when the text was understood; the sheet clears its field on that. */
-  const handleSend = (text: string): boolean => {
-    // Without `learnings` the per-user categories were ignored, and without
-    // `usdRate` every USD entry was rejected outright.
+  const handleParse = (text: string): boolean => {
+    // Without `learnings` the per-user categories are ignored, and without
+    // `usdRate` every USD entry is rejected outright.
     const parsed = parseEntry(text, {
       type: mode,
       learnings: learnings ?? [],
-      usdRate: usdRate ?? null,
+      usdRate: actions.usdRate,
     });
     if (parsed) {
       setPending(parsed);
       return true;
     }
-    const isUsd = /\busd\b|u\$s/i.test(text);
-    if (isUsd && !usdRate) {
+    if (/\busd\b|u\$s/i.test(text) && !actions.usdRate) {
       toast.error(
         language === 'es'
           ? 'No pude obtener la cotización del dólar. Probá de nuevo en unos segundos.'
@@ -106,31 +91,10 @@ export default function Home() {
   };
 
   const handleConfirmPending = async () => {
-    if (!pending || createTx.isPending) return;
-    try {
-      await createTx.mutateAsync({
-        type: pending.type,
-        amount: pending.amount,
-        currency: pending.currency,
-        fxRate: pending.fxRate,
-        category: pending.category,
-        description: pending.description,
-        occurredOn: pending.date,
-        rawInput: pending.rawInput,
-        calculation: pending.calculation ?? null,
-      });
+    if (!pending) return;
+    if (await actions.create(pending)) {
       setPending(null);
       setAddOpen(false);
-      // A transaction saved while browsing another month would otherwise land
-      // off-screen.
-      month.showMonthOf(pending.date);
-      toast.success(
-        language === 'es'
-          ? pending.type === 'expense' ? 'Gasto guardado' : 'Ingreso guardado'
-          : pending.type === 'expense' ? 'Expense saved' : 'Income saved',
-      );
-    } catch {
-      toast.error(language === 'es' ? 'Error al guardar' : 'Error saving');
     }
   };
 
@@ -148,14 +112,14 @@ export default function Home() {
       const result = await analyzeDocument(file);
       setExtraction(result);
       setAddOpen(false);
-      setSheetOpen(true);
+      setAnalysisOpen(true);
     } catch (e) {
       setPreviewUrl(null);
-      if (e instanceof DocumentError) {
-        toast.error(e.message);
-      } else {
-        toast.error(language === 'es' ? 'Error al analizar' : 'Analysis error');
-      }
+      toast.error(
+        e instanceof DocumentError
+          ? e.message
+          : language === 'es' ? 'Error al analizar' : 'Analysis error',
+      );
     }
   };
 
@@ -163,9 +127,9 @@ export default function Home() {
     if (!extraction) return;
     try {
       // The sheet has no access to the USD rate, so it always sends 1.
-      const fxRate = data.currency === 'USD' ? (usdRate ?? data.fxRate) : 1;
+      const fxRate = data.currency === 'USD' ? (actions.usdRate ?? data.fxRate) : 1;
       await confirmTransaction(extraction.receiptId, { ...data, fxRate });
-      setSheetOpen(false);
+      setAnalysisOpen(false);
       setExtraction(null);
       setPreviewUrl(null);
       // Written outside React Query, so the list has to be told to refetch.
@@ -174,63 +138,6 @@ export default function Home() {
       toast.success(language === 'es' ? 'Comprobante guardado' : 'Receipt saved');
     } catch {
       toast.error(language === 'es' ? 'Error al confirmar' : 'Confirmation error');
-    }
-  };
-
-  const handleDelete = (tx: Transaction) => {
-    deleteTx.mutate(tx.id, {
-      onSuccess: () =>
-        // A long swipe deletes outright, and the delete is permanent — without
-        // an undo an accidental gesture silently costs data.
-        toast.success(language === 'es' ? 'Movimiento eliminado' : 'Transaction deleted', {
-          action: {
-            label: t('undo'),
-            onClick: () => {
-              createTx.mutate({
-                type: tx.type,
-                amount: tx.amount,
-                currency: tx.currency,
-                fxRate: tx.fxRate,
-                category: tx.category,
-                description: tx.description,
-                occurredOn: tx.occurredOn,
-                rawInput: tx.rawInput,
-                calculation: tx.calculation,
-              });
-            },
-          },
-        }),
-      onError: () => toast.error(language === 'es' ? 'Error al eliminar' : 'Delete error'),
-    });
-  };
-
-  const handleSaveEdit = async (data: Partial<Transaction>) => {
-    if (!editingTx) return;
-    try {
-      // Switching currency has to re-price the transaction, otherwise the ARS
-      // totals keep using the old rate.
-      let fxRate = editingTx.fxRate;
-      if (data.currency && data.currency !== editingTx.currency) {
-        if (data.currency === 'USD') {
-          if (!usdRate) {
-            toast.error(
-              language === 'es'
-                ? 'No pude obtener la cotización del dólar.'
-                : "Couldn't fetch the USD rate.",
-            );
-            return;
-          }
-          fxRate = usdRate;
-        } else {
-          fxRate = 1;
-        }
-      }
-      await updateTx.mutateAsync({ id: editingTx.id, ...data, fxRate });
-      setEditingTx(null);
-      if (data.occurredOn) month.showMonthOf(data.occurredOn);
-      toast.success(language === 'es' ? 'Cambios guardados' : 'Changes saved');
-    } catch {
-      toast.error(language === 'es' ? 'Error al guardar' : 'Error saving');
     }
   };
 
@@ -258,19 +165,19 @@ export default function Home() {
         />
 
         {isLoading ? (
-          <TransactionList groups={[]} label={groupLabel} onEdit={setEditingTx} onDelete={handleDelete} loading />
+          <TransactionList groups={[]} label={groupLabel} onEdit={setEditing} onDelete={actions.remove} loading />
         ) : groups.length === 0 ? (
           <div className="px-4 py-20 text-center">
             <p className="mx-auto max-w-xs text-[15px] leading-relaxed text-ink-tertiary">
-              {hasAnyEver ? t('noTransactionsThisMonth') : t('expenseWelcome')}
+              {transactions?.length ? t('noTransactionsThisMonth') : t('expenseWelcome')}
             </p>
           </div>
         ) : (
           <TransactionList
             groups={groups}
             label={groupLabel}
-            onEdit={setEditingTx}
-            onDelete={handleDelete}
+            onEdit={setEditing}
+            onDelete={actions.remove}
           />
         )}
       </PageShell>
@@ -285,29 +192,31 @@ export default function Home() {
         }}
         type={mode}
         onTypeChange={setMode}
-        onParse={handleSend}
+        onParse={handleParse}
         pending={pending}
         onConfirm={handleConfirmPending}
         onCancelPending={() => setPending(null)}
         onUpload={handleUpload}
-        saving={createTx.isPending}
+        saving={actions.creating}
       />
 
       <DocumentAnalysisSheet
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
+        open={analysisOpen}
+        onOpenChange={setAnalysisOpen}
         extraction={extraction}
         previewUrl={previewUrl}
         onConfirm={handleConfirmExtraction}
       />
 
       <EditTransactionSheet
-        open={!!editingTx}
-        onOpenChange={(open) => { if (!open) setEditingTx(null); }}
-        transaction={editingTx}
-        onSave={handleSaveEdit}
-        onDelete={handleDelete}
-        loading={updateTx.isPending}
+        open={!!editing}
+        onOpenChange={(open) => { if (!open) setEditing(null); }}
+        transaction={editing}
+        onSave={async (data) => {
+          if (editing && (await actions.save(editing, data))) setEditing(null);
+        }}
+        onDelete={actions.remove}
+        loading={actions.saving}
       />
     </>
   );

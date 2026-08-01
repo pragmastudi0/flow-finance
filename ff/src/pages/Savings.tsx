@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Plus, Target, ArrowLeft, PiggyBank } from 'lucide-react';
+import { Plus, Target, PiggyBank } from 'lucide-react';
 import { toast } from 'sonner';
 import { differenceInDays, parseISO } from 'date-fns';
 
+import { cn } from '@/lib/cn';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ROUTES } from '@/lib/routes';
 import { useSavingsGoals, useCreateGoal, useContributeToGoal } from '@/hooks/useSavings';
 import { formatCurrency, formatDateFull } from '@/lib/format';
 import {
@@ -78,29 +80,17 @@ export default function Savings() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="pb-nav min-h-full bg-surface p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/Reports">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{t('savings')}</h1>
-              <p className="text-sm text-slate-500">{t('savingsSubtitle')}</p>
-            </div>
+    <PageShell width="wide">
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <PageHeader title={t('savings')} subtitle={t('savingsSubtitle')} back={ROUTES.reports} />
           </div>
+          <div className="shrink-0 pt-6">
           <Dialog open={newGoalOpen} onOpenChange={setNewGoalOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4" />
-                {t('newGoal')}
+              <Button size="icon" aria-label={t('newGoal')}>
+                <Plus className="h-5 w-5" />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -109,7 +99,7 @@ export default function Savings() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('description')}
                   </label>
                   <Input
@@ -119,7 +109,7 @@ export default function Savings() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('goalAmount')}
                   </label>
                   <Input
@@ -130,7 +120,7 @@ export default function Savings() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('targetDate')}
                   </label>
                   <Input
@@ -150,14 +140,15 @@ export default function Savings() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {goals.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <PiggyBank className="mb-4 h-12 w-12 text-slate-300" />
-              <p className="text-sm font-medium text-slate-500">{t('noGoals')}</p>
-              <p className="text-xs text-slate-400">{t('noGoalsHint')}</p>
+              <PiggyBank className="mb-4 h-12 w-12 text-ink-tertiary" />
+              <p className="text-sm font-medium text-ink-tertiary">{t('noGoals')}</p>
+              <p className="text-xs text-ink-tertiary">{t('noGoalsHint')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -178,47 +169,45 @@ export default function Savings() {
                         <CardTitle className="text-base">
                           {goal.description}
                         </CardTitle>
-                        <p className="mt-0.5 text-xs text-slate-400">
+                        <p className="mt-0.5 text-xs text-ink-tertiary">
                           {formatDateFull(goal.targetDate)}
                         </p>
                       </div>
-                      <Target className="h-5 w-5 text-slate-300" />
+                      <Target className="h-5 w-5 text-ink-tertiary" />
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
                       <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${progress}%`,
-                          backgroundColor:
-                            progress >= 100
-                              ? '#22c55e'
-                              : isOverdue
-                                ? '#ef4444'
-                                : '#3b82f6',
-                        }}
+                        className={cn(
+                          'h-full rounded-full transition-all duration-500',
+                          progress >= 100 ? 'bg-income' : isOverdue ? 'bg-expense' : 'bg-ink',
+                        )}
+                        style={{ width: `${progress}%` }}
+                        /* Reached, overdue, in progress — the two money colours
+                           plus ink. A blue bar was a third brand colour. */
+                        data-state={progress >= 100 ? 'done' : isOverdue ? 'late' : 'active'}
                       />
                     </div>
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-900">
+                      <span className="font-medium text-ink">
                         {formatCurrency(goal.currentSavedAmount ?? 0)}
                       </span>
-                      <span className="text-slate-400">
+                      <span className="text-ink-tertiary">
                         / {formatCurrency(goal.goalAmount)}
                       </span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span
                         className={
-                          isOverdue ? 'font-medium text-red-500' : 'text-slate-400'
+                          isOverdue ? 'font-medium text-expense' : 'text-ink-tertiary'
                         }
                       >
                         {isOverdue
                           ? t('overdue')
                           : `${daysLeft} ${t('daysLeft')}`}
                       </span>
-                      <span className="font-medium text-slate-600">
+                      <span className="font-medium text-ink-secondary">
                         {progress.toFixed(0)}%
                       </span>
                     </div>
@@ -249,7 +238,7 @@ export default function Savings() {
                           </DialogTitle>
                         </DialogHeader>
                         <div className="py-4">
-                          <label className="text-sm font-medium text-slate-700">
+                          <label className="text-sm font-medium text-ink">
                             {t('amount')}
                           </label>
                           <Input
@@ -280,6 +269,6 @@ export default function Savings() {
           </div>
         )}
       </div>
-    </motion.div>
+    </PageShell>
   );
 }

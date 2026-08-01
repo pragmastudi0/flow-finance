@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/cn';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ROUTES } from '@/lib/routes';
 import {
   useUserCategories,
   useCreateCategory,
@@ -70,29 +71,17 @@ export default function CategoriesPage() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="pb-nav min-h-full bg-surface p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/Settings">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{t('categoriesTitle')}</h1>
-              <p className="text-sm text-slate-500">{t('categoriesPageSubtitle')}</p>
-            </div>
+    <PageShell>
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <PageHeader title={t('categoriesTitle')} subtitle={t('categoriesPageSubtitle')} back={ROUTES.settings} />
           </div>
+          <div className="shrink-0 pt-6">
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4" />
-                {t('addCategory')}
+              <Button size="icon" aria-label={t('addCategory')}>
+                <Plus className="h-5 w-5" />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -101,7 +90,7 @@ export default function CategoriesPage() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('type')}
                   </label>
                   <div className="mt-1 flex gap-2">
@@ -124,7 +113,7 @@ export default function CategoriesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('name')}
                   </label>
                   <Input
@@ -134,7 +123,7 @@ export default function CategoriesPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('icon')}
                   </label>
                   <div className="mt-1 flex flex-wrap gap-2">
@@ -146,8 +135,8 @@ export default function CategoriesPage() {
                         className={cn(
                           'flex h-10 w-10 items-center justify-center rounded-lg text-lg transition-colors',
                           icon === emoji
-                            ? 'bg-slate-200 ring-2 ring-slate-400'
-                            : 'hover:bg-slate-100',
+                            ? 'bg-hairline ring-2 ring-ink'
+                            : 'hover:bg-surface-muted',
                         )}
                         aria-label={emoji}
                       >
@@ -157,7 +146,7 @@ export default function CategoriesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('color')}
                   </label>
                   <div className="mt-1 flex flex-wrap gap-3">
@@ -168,7 +157,7 @@ export default function CategoriesPage() {
                         onClick={() => setColor(c.hex)}
                         className={cn(
                           'h-10 w-10 rounded-full transition-transform',
-                          color === c.hex && 'scale-125 ring-2 ring-slate-400 ring-offset-2',
+                          color === c.hex && 'scale-125 ring-2 ring-ink ring-offset-2',
                         )}
                         style={{ backgroundColor: c.hex }}
                         aria-label={c.value}
@@ -187,26 +176,27 @@ export default function CategoriesPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-tertiary">
             {t('defaultCategory')}
           </h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {builtInCategories.map((cat) => (
               <div
                 key={cat.name}
-                className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3"
+                className="flex items-center gap-3 rounded-lg border border-hairline bg-white px-4 py-3"
               >
                 <span className="text-lg">
                   {CATEGORY_ICONS[cat.name] || '📄'}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-900">
+                  <p className="text-sm font-medium text-ink">
                     {t(cat.name as any)}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-ink-tertiary">
                     {cat.type === 'expense' ? t('expenseType') : t('incomeType')}
                   </p>
                 </div>
@@ -223,21 +213,21 @@ export default function CategoriesPage() {
 
         {userCategories.length > 0 && (
           <div>
-            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink-tertiary">
               {language === 'es' ? 'Tus categorías' : 'Your categories'}
             </h2>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {userCategories.map((cat) => (
                 <div
                   key={cat.id}
-                  className="flex items-center gap-3 rounded-lg border border-slate-100 bg-white px-4 py-3"
+                  className="flex items-center gap-3 rounded-lg border border-hairline bg-white px-4 py-3"
                 >
                   <span className="text-lg">{cat.icon || '📄'}</span>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-sm font-medium text-ink">
                       {cat.name}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="text-xs text-ink-tertiary">
                       {cat.type === 'expense' ? t('expenseType') : t('incomeType')}
                     </p>
                   </div>
@@ -247,7 +237,7 @@ export default function CategoriesPage() {
                   />
                   <button
                     onClick={() => handleDelete(cat.id)}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-tertiary hover:bg-expense/10 hover:text-expense"
                     aria-label={t('delete')}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -259,13 +249,13 @@ export default function CategoriesPage() {
         )}
 
         {userCategories.length === 0 && builtInCategories.length > 0 && (
-          <div className="rounded-lg border border-dashed border-slate-200 py-8 text-center text-sm text-slate-400">
+          <div className="rounded-lg border border-dashed border-hairline py-8 text-center text-sm text-ink-tertiary">
             {language === 'es'
               ? 'No creaste categorías personalizadas todavía'
               : 'No custom categories yet'}
           </div>
         )}
       </div>
-    </motion.div>
+    </PageShell>
   );
 }

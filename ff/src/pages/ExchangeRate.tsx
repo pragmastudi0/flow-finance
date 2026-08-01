@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, RefreshCw, DollarSign, Clock } from 'lucide-react';
+import { RefreshCw, DollarSign, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/cn';
 import { useLanguage } from '@/i18n/LanguageProvider';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ROUTES } from '@/lib/routes';
 import {
   useBlueRate,
   useExchangeRateConfig,
@@ -91,37 +92,25 @@ export default function ExchangeRate() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="pb-nav min-h-full bg-surface p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Link to="/Settings">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {t('exchangeRateTitle')}
-            </h1>
-            <p className="text-sm text-slate-500">{t('exchangeRateSubtitle')}</p>
-          </div>
-        </div>
+    <PageShell>
+      <div className="space-y-6">
+        <PageHeader
+          title={t('exchangeRateTitle')}
+          subtitle={t('exchangeRateSubtitle')}
+          back={ROUTES.settings}
+        />
 
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <DollarSign className="h-4 w-4 text-slate-400" />
+              <DollarSign className="h-4 w-4 text-ink-tertiary" />
               {t('currentRate')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-3xl font-bold text-slate-900">
+                <p className="text-3xl font-bold text-ink">
                   {rate != null
                     ? formatCurrency(rate, 'ARS')
                     : config?.lastValue != null
@@ -129,18 +118,18 @@ export default function ExchangeRate() {
                       : t('noValueYet')}
                 </p>
                 {rateLoading && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-ink-tertiary">
                     {language === 'es' ? 'Cargando...' : 'Loading...'}
                   </p>
                 )}
                 {!rateLoading && (rate != null || config?.lastUpdatedAt) && (
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-ink-tertiary">
                     {t('lastUpdated')}
                     {formatDateFull(rate != null ? new Date().toISOString() : config?.lastUpdatedAt || '')}
                   </p>
                 )}
                 {rateError && (
-                  <p className="mt-1 text-xs text-red-500">
+                  <p className="mt-1 text-xs text-expense">
                     {language === 'es' ? 'Error al cargar' : 'Error loading'}
                   </p>
                 )}
@@ -160,8 +149,8 @@ export default function ExchangeRate() {
                 className={cn(
                   'mt-3 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
                   config.lastStatus === 'ok'
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'bg-red-100 text-red-700',
+                    ? 'bg-income/10 text-income'
+                    : 'bg-expense/10 text-expense',
                 )}
               >
                 {config.lastStatus === 'ok'
@@ -175,17 +164,17 @@ export default function ExchangeRate() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Clock className="h-4 w-4 text-slate-400" />
+              <Clock className="h-4 w-4 text-ink-tertiary" />
               {t('configuration')}
             </CardTitle>
             <CardDescription>{t('configurationHint')}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-ink">
                 {t('sourceUrl')}
               </label>
-              <p className="mb-1 text-xs text-slate-400">{t('sourceUrlHint')}</p>
+              <p className="mb-1 text-xs text-ink-tertiary">{t('sourceUrlHint')}</p>
               <Input
                 value={sourceUrl}
                 onChange={(e) => setSourceUrl(e.target.value)}
@@ -193,10 +182,10 @@ export default function ExchangeRate() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-700">
+              <label className="text-sm font-medium text-ink">
                 {t('refreshEvery')}
               </label>
-              <p className="mb-1 text-xs text-slate-400">{t('refreshHint')}</p>
+              <p className="mb-1 text-xs text-ink-tertiary">{t('refreshHint')}</p>
               <Input
                 type="number"
                 value={refreshMinutes}
@@ -217,25 +206,25 @@ export default function ExchangeRate() {
           </CardHeader>
           <CardContent>
             {history.length === 0 ? (
-              <div className="py-6 text-center text-sm text-slate-400">
+              <div className="py-6 text-center text-sm text-ink-tertiary">
                 {t('noData')}
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-hairline">
                 {history.map((entry) => (
                   <div key={entry.id} className="flex items-center justify-between gap-4 py-3 sm:py-2.5">
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-slate-400">
+                      <p className="text-xs text-ink-tertiary">
                         {entry.capturedAt ? formatDateFull(entry.capturedAt) : '—'}
                       </p>
                       <div className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5">
-                        <span className="text-sm text-slate-700">
+                        <span className="text-sm text-ink">
                           {language === 'es' ? 'Compra:' : 'Buy:'}{' '}
                           <span className="font-medium">
                             {entry.rateBuy != null ? formatCurrency(entry.rateBuy) : '—'}
                           </span>
                         </span>
-                        <span className="text-sm text-slate-700">
+                        <span className="text-sm text-ink">
                           {language === 'es' ? 'Venta:' : 'Sell:'}{' '}
                           <span className="font-medium">
                             {entry.rateSell != null ? formatCurrency(entry.rateSell) : '—'}
@@ -247,10 +236,10 @@ export default function ExchangeRate() {
                       className={cn(
                         'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
                         entry.status === 'ok'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-income/10 text-income'
                           : entry.status === 'pending'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700',
+                            ? 'bg-surface-muted text-ink-secondary'
+                            : 'bg-expense/10 text-expense',
                       )}
                     >
                       {entry.status === 'ok'
@@ -266,6 +255,6 @@ export default function ExchangeRate() {
           </CardContent>
         </Card>
       </div>
-    </motion.div>
+    </PageShell>
   );
 }

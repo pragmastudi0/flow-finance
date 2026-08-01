@@ -1,29 +1,15 @@
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  ArrowLeft,
-  Languages,
-  Mail,
-  LogOut,
-  Tag,
-  Receipt,
-  DollarSign,
-} from 'lucide-react';
-import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
+import { Languages, LogOut, Tag, Receipt, DollarSign } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { supabase, isDemoMode } from '@/lib/supabase';
 import { logoutUser } from '@/lib/demo';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { ROUTES } from '@/lib/routes';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ListGroup, ListRow } from '@/components/layout/ListGroup';
+import { AnimatedSegment } from '@/components/money/AnimatedSegment';
 
 export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
@@ -45,129 +31,71 @@ export default function Settings() {
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast.error(error.message);
-    } else {
-      toast.success(language === 'es' ? 'Sesión cerrada' : 'Signed out');
-      window.location.href = '/auth';
+      return;
     }
+    toast.success(language === 'es' ? 'Sesión cerrada' : 'Signed out');
+    window.location.href = '/auth';
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="pb-nav min-h-full bg-surface p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Link to={ROUTES.reports}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">{t('settings')}</h1>
-            <p className="text-sm text-slate-500">{t('settingsSubtitle')}</p>
-          </div>
-        </div>
+    <PageShell>
+      <PageHeader title={t('settings')} subtitle={t('settingsSubtitle')} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Languages className="h-4 w-4 text-slate-400" />
-              {t('language')}
-            </CardTitle>
-            <CardDescription>{t('languageSubtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-3">
-              <Button
-                variant={language === 'es' ? 'default' : 'outline'}
-                onClick={() => setLanguage('es')}
-              >
-                ES
-              </Button>
-              <Button
-                variant={language === 'en' ? 'default' : 'outline'}
-                onClick={() => setLanguage('en')}
-              >
-                EN
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-7">
+        <ListGroup>
+          <ListRow
+            icon={Tag}
+            label={t('categories')}
+            description={t('categoriesSubtitle')}
+            to={ROUTES.categories}
+          />
+          <ListRow
+            icon={Receipt}
+            label={t('fixedExpenses')}
+            description={t('fixedExpensesSubtitle')}
+            to={ROUTES.fixedExpenses}
+          />
+          <ListRow
+            icon={DollarSign}
+            label={t('usdBlue')}
+            description={t('usdBlueSubtitle')}
+            to={ROUTES.exchangeRate}
+          />
+        </ListGroup>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Tag className="h-4 w-4 text-slate-400" />
-              {t('categories')}
-            </CardTitle>
-            <CardDescription>{t('categoriesSubtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to={ROUTES.categories}>
-              <Button variant="outline">
-                {t('configure')}
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <ListGroup title={t('language')}>
+          <ListRow
+            icon={Languages}
+            label={t('language')}
+            trailing={
+              <div className="w-32 shrink-0">
+                <AnimatedSegment
+                  options={[
+                    { value: 'es' as const, label: 'ES' },
+                    { value: 'en' as const, label: 'EN' },
+                  ]}
+                  value={language}
+                  onChange={setLanguage}
+                  ariaLabel={t('language')}
+                />
+              </div>
+            }
+          />
+        </ListGroup>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Receipt className="h-4 w-4 text-slate-400" />
-              {t('fixedExpenses')}
-            </CardTitle>
-            <CardDescription>{t('fixedExpensesSubtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to={ROUTES.fixedExpenses}>
-              <Button variant="outline">
-                {t('configure')}
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <DollarSign className="h-4 w-4 text-slate-400" />
-              {t('usdBlue')}
-            </CardTitle>
-            <CardDescription>{t('usdBlueSubtitle')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link to={ROUTES.exchangeRate}>
-              <Button variant="outline">
-                {t('configure')}
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Mail className="h-4 w-4 text-slate-400" />
-              {language === 'es' ? 'Correo electrónico' : 'Email'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-slate-600">{email ?? '—'}</p>
-          </CardContent>
-        </Card>
-
-        <Button
-          variant="outline"
-          className="w-full text-red-500 hover:bg-red-50 hover:text-red-600"
-          onClick={handleSignOut}
-        >
-          <LogOut className="h-4 w-4" />
-          {language === 'es' ? 'Cerrar sesión' : 'Sign out'}
-        </Button>
+        <ListGroup>
+          <ListRow
+            label={language === 'es' ? 'Correo electrónico' : 'Email'}
+            value={email ?? '—'}
+          />
+          <ListRow
+            icon={LogOut}
+            label={language === 'es' ? 'Cerrar sesión' : 'Sign out'}
+            onClick={handleSignOut}
+            destructive
+          />
+        </ListGroup>
       </div>
-    </motion.div>
+    </PageShell>
   );
 }
