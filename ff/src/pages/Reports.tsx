@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   startOfWeek,
   startOfMonth,
@@ -9,30 +7,20 @@ import {
   eachDayOfInterval,
 } from 'date-fns';
 import { enUS, es } from 'date-fns/locale';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-  ResponsiveContainer,
-} from 'recharts';
-import { Download, Settings, Target } from 'lucide-react';
+import { Download } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
 
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
-import { CATEGORY_COLORS, CATEGORY_ICONS } from '@/domain/categories';
+import { CATEGORY_ICONS } from '@/domain/categories';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { exportTransactions } from '@/lib/exportReport';
 import { Button } from '@/components/ui/button';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { AnimatedSegment } from '@/components/money/AnimatedSegment';
+import { CategoryChart, type ChartView } from '@/components/money/CategoryChart';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -63,7 +51,7 @@ export default function Reports() {
   const categoryLabel = useCategoryLabel();
   const dateLocale = language === 'es' ? es : enUS;
   const [period, setPeriod] = useState<Period>('month');
-  const [chartView, setChartView] = useState<'pie' | 'bar'>('pie');
+  const [chartView, setChartView] = useState<ChartView>('pie');
 
   const dateRange = useMemo(() => getDateRange(period), [period]);
   const { data: transactions = [] } = useTransactions({
@@ -127,258 +115,133 @@ export default function Reports() {
   }, [expenses, period, dateRange]);
 
   const handleExport = () => {
-    const rows = transactions.map((tx) => ({
-      [t('date')]: tx.occurredOn,
-      [t('description')]: tx.description,
-      [t('category')]: tx.category,
-      [t('type')]: tx.type === 'expense' ? t('expenseType') : t('incomeType'),
-      [t('amount')]: tx.amount,
-      Currency: tx.currency,
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, t('sheetTransactions'));
-    XLSX.writeFile(wb, `${t('exportFilename')}-${dateRange.start}.xlsx`);
+    exportTransactions(
+      transactions,
+      {
+        date: t('date'), description: t('description'), category: t('category'),
+        type: t('type'), amount: t('amount'),
+        expense: t('expenseType'), income: t('incomeType'),
+        sheet: t('sheetTransactions'), filename: t('exportFilename'),
+      },
+      dateRange.start,
+    );
     toast.success(t('exportToExcel'));
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold text-slate-900 sm:text-2xl">{t('reportsTitle')}</h1>
-            <p className="text-sm text-slate-500">{t('reportsSubtitle')}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link to="/Savings">
-              <Button variant="outline">
-                <Target className="h-4 w-4" />
-                {t('savings')}
-              </Button>
-            </Link>
-            <Link to="/Settings">
-              <Button variant="outline" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="h-4 w-4" />
-              {t('exportToExcel')}
-            </Button>
-          </div>
-        </div>
+    <PageShell width="wide">
+      <PageHeader
+        title={t('reportsTitle')}
+        subtitle={t('reportsSubtitle')}
+        action={
+          <Button variant="ghost" size="icon" onClick={handleExport} aria-label={t('exportToExcel')}>
+            <Download className="h-[18px] w-[18px]" />
+          </Button>
+        }
+      />
 
-        <div className="flex w-full gap-1 overflow-x-auto rounded-lg bg-slate-100 p-1 sm:w-fit">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                'rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                period === p
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700',
-              )}
-            >
-              {p === 'all' ? t('allTime') : t(p)}
-            </button>
-          ))}
-        </div>
+      <div className="space-y-7">
+        <AnimatedSegment
+          options={PERIODS.map((p) => ({ value: p, label: p === 'all' ? t('allTime') : t(p) }))}
+          value={period}
+          onChange={setPeriod}
+          ariaLabel={t('period')}
+        />
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                {t('totalIncome')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-emerald-600">
-                {formatCurrency(totalIncome)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                {t('totalExpenses')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-red-500">
-                {formatCurrency(totalExpenses)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                {t('balance')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={cn(
-                  'text-2xl font-bold',
-                  balance >= 0 ? 'text-emerald-600' : 'text-red-500',
-                )}
-              >
-                {formatCurrency(balance)}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-slate-500">
-                {t('savingsRate')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p
-                className={cn(
-                  'text-2xl font-bold',
-                  savingsRate >= 0 ? 'text-emerald-600' : 'text-red-500',
-                )}
-              >
-                {savingsRate.toFixed(1)}%
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">{t('visualizations')}</CardTitle>
-            <div className="flex gap-1 rounded-md bg-slate-100 p-1">
-              <button
-                onClick={() => setChartView('pie')}
-                className={cn(
-                  'rounded px-3 py-2 text-sm font-medium transition-colors',
-                  chartView === 'pie'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700',
-                )}
-              >
-                {t('pie')}
-              </button>
-              <button
-                onClick={() => setChartView('bar')}
-                className={cn(
-                  'rounded px-3 py-2 text-sm font-medium transition-colors',
-                  chartView === 'bar'
-                    ? 'bg-white text-slate-900 shadow-sm'
-                    : 'text-slate-500 hover:text-slate-700',
-                )}
-              >
-                {t('bar')}
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              {chartView === 'pie' ? (
-                expensesByCategory.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={expensesByCategory}
-                        cx="50%"
-                        cy="50%"
-                        outerRadius={100}
-                        dataKey="value"
-                        label={({ name }) => categoryLabel(name)}
-                      >
-                        {expensesByCategory.map((entry) => (
-                          <Cell
-                            key={entry.name}
-                            fill={CATEGORY_COLORS[entry.name] || '#64748b'}
-                          />
-                        ))}
-                      </Pie>
-                      <RechartsTooltip
-                        formatter={(value: number) => formatCurrency(value)}
-                        labelFormatter={(name: string) => categoryLabel(name)}
-                      />
-                      <Legend formatter={(name: string) => categoryLabel(name)} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                    {t('noData')}
-                  </div>
-                )
-              ) : barData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <RechartsTooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                    />
-                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex h-full items-center justify-center text-sm text-slate-400">
-                  {t('noData')}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">{t('sheetTransactions')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {transactions.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-400">
-                {t('noData')}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {transactions.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-100 bg-white px-4 py-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-lg">
-                        {CATEGORY_ICONS[tx.category] || '📄'}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium text-slate-900">
-                          {tx.description}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {tx.occurredOn ? formatDate(tx.occurredOn) : ''} ·{' '}
-                          {categoryLabel(tx.category)}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        'text-sm font-semibold',
-                        tx.type === 'expense' ? 'text-red-500' : 'text-emerald-600',
-                      )}
-                    >
-                      {tx.type === 'expense' ? '-' : '+'}
-                      {formatCurrency(tx.amount, tx.currency)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+        {/* One card, four figures — the four separate bordered cards read as a
+            dashboard rather than as a summary. */}
+        <div className="rounded-2xl bg-surface-muted/60 px-5 py-5">
+          <p className="text-[13px] font-medium text-ink-tertiary">{t('balance')}</p>
+          <p
+            className={cn(
+              'tnum mt-1 text-[34px] font-bold leading-none tracking-[-0.03em]',
+              balance < 0 ? 'text-expense' : 'text-ink',
             )}
-          </CardContent>
-        </Card>
+          >
+            {balance > 0 && '+'}
+            {formatCurrency(balance)}
+          </p>
+
+          <div className="mt-5 grid grid-cols-3 gap-4 border-t border-hairline pt-4">
+            <Stat label={t('income')} value={formatCurrency(totalIncome)} tone="income" />
+            <Stat label={t('expenses')} value={formatCurrency(totalExpenses)} tone="expense" />
+            <Stat label={t('savingsRate')} value={`${savingsRate.toFixed(0)}%`} />
+          </div>
+        </div>
+
+        <CategoryChart
+          view={chartView}
+          onViewChange={setChartView}
+          byCategory={expensesByCategory}
+          overTime={barData}
+        />
+
+        <section>
+          <h2 className="pb-1.5 text-[15px] font-semibold text-ink">{t('sheetTransactions')}</h2>
+          {transactions.length === 0 ? (
+            <Empty text={t('noData')} />
+          ) : (
+            <ul className="-mx-5">
+              {transactions.map((tx) => (
+                <li
+                  key={tx.id}
+                  className="flex items-center gap-3 border-b border-hairline px-5 py-3 last:border-b-0"
+                >
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[17px] leading-none">
+                    {CATEGORY_ICONS[tx.category] || '📄'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-medium leading-tight text-ink">
+                      {categoryLabel(tx.category)}
+                    </p>
+                    {tx.description && (
+                      <p className="truncate text-[13px] leading-tight text-ink-secondary">
+                        {tx.description}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-[12px] leading-tight text-ink-tertiary">
+                      {tx.occurredOn ? formatDate(tx.occurredOn) : ''}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'tnum shrink-0 text-[15px] font-semibold',
+                      tx.type === 'expense' ? 'text-expense' : 'text-income',
+                    )}
+                  >
+                    {tx.type === 'expense' ? '-' : '+'}
+                    {formatCurrency(tx.amount, tx.currency)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
-    </motion.div>
+    </PageShell>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: string; tone?: 'income' | 'expense' }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[12px] leading-tight text-ink-tertiary">{label}</p>
+      <p
+        className={cn(
+          'tnum mt-0.5 truncate text-[15px] font-semibold',
+          tone === 'income' ? 'text-income' : tone === 'expense' ? 'text-expense' : 'text-ink',
+        )}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Empty({ text }: { text: string }) {
+  return (
+    <div className="flex h-full min-h-[120px] items-center justify-center text-[14px] text-ink-tertiary">
+      {text}
+    </div>
   );
 }

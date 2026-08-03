@@ -92,7 +92,7 @@ export function DocumentAnalysisSheet({
             </div>
           )}
 
-          <Badge className={extraction.confidence >= 0.7 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
+          <Badge className={extraction.confidence >= 0.7 ? 'bg-income/10 text-income' : 'bg-surface-muted text-ink-secondary'}>
             {Math.round(extraction.confidence * 100)}%
           </Badge>
 

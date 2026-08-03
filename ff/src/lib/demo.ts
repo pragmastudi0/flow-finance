@@ -44,6 +44,9 @@ export function registerUser(email: string, password: string, name?: string): vo
   users.push({ email, password, name: name || email.split('@')[0], createdAt: new Date().toISOString() });
   localStorage.setItem('ff:users', JSON.stringify(users));
   setSession(email);
+  // The store is namespaced per email, so there is nothing to write to until a
+  // session exists — which is why this can't be seeded at module load.
+  seedDemoData();
 }
 
 export function loginUser(email: string, password: string): void {
@@ -52,6 +55,7 @@ export function loginUser(email: string, password: string): void {
   if (!user) throw new Error('Usuario no encontrado');
   if (user.password !== password) throw new Error('Contraseña incorrecta');
   setSession(email);
+  seedDemoData();
 }
 
 export function logoutUser(): void {
@@ -142,6 +146,15 @@ export function seedDemoData() {
   demoTransactions.insert({ type: 'income', amount: 500000, currency: 'ARS', fxRate: 1, category: 'salary', description: 'Salario mensual', occurredOn: yyyymmdd(lastWeek), rawInput: '500000 salario', createdAt: new Date().toISOString() });
   demoTransactions.insert({ type: 'expense', amount: 15000, currency: 'ARS', fxRate: 1, category: 'bills', description: 'Edenor', occurredOn: yyyymmdd(lastWeek), rawInput: '15000 edenor', createdAt: new Date().toISOString() });
   demoTransactions.insert({ type: 'expense', amount: 8900, currency: 'ARS', fxRate: 1, category: 'entertainment', description: 'Netflix + Spotify', occurredOn: yyyymmdd(lastWeek), rawInput: '8900 netflix', createdAt: new Date().toISOString() });
+
+  // A non-1 fxRate: the only way to catch by eye a total that summed
+  // `tx.amount` instead of `baseAmount(tx)`.
+  demoTransactions.insert({ type: 'expense', amount: 120, currency: 'USD', fxRate: 1180, category: 'shopping', description: 'Licencia anual', occurredOn: yyyymmdd(lastWeek), rawInput: 'usd 120 licencia', createdAt: new Date().toISOString() });
+
+  // Previous month, so stepping back through the month selector isn't empty.
+  const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 12);
+  demoTransactions.insert({ type: 'income', amount: 480000, currency: 'ARS', fxRate: 1, category: 'salary', description: 'Salario mensual', occurredOn: yyyymmdd(lastMonth), rawInput: '480000 salario', createdAt: new Date().toISOString() });
+  demoTransactions.insert({ type: 'expense', amount: 21400, currency: 'ARS', fxRate: 1, category: 'groceries', description: 'Jumbo', occurredOn: yyyymmdd(lastMonth), rawInput: '21400 jumbo', createdAt: new Date().toISOString() });
 
   demoGoals.insert({ description: 'Viaje a Japón', goalAmount: 3000000, targetDate: '2027-06-01', status: 'active', currentSavedAmount: 450000, remainingAmount: 2550000, progressPct: 15 });
   demoGoals.insert({ description: 'Fondo de emergencia', goalAmount: 1000000, targetDate: '2026-12-01', status: 'active', currentSavedAmount: 600000, remainingAmount: 400000, progressPct: 60 });

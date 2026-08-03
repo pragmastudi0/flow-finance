@@ -35,6 +35,13 @@ const en = {
   progress: 'Progress',
   noData: 'No data to display',
 
+  // home
+  monthBalance: 'Balance this month',
+  allTransactions: 'All',
+  addTransaction: 'Add transaction',
+  undo: 'Undo',
+  noTransactionsThisMonth: 'No transactions this month',
+
   // chat
   expenses: 'Expenses',
   income: 'Income',
@@ -250,6 +257,12 @@ const es: typeof en = {
   currency: 'Moneda',
   progress: 'Progreso',
   noData: 'Sin datos para mostrar',
+
+  monthBalance: 'Balance del mes',
+  allTransactions: 'Todos',
+  addTransaction: 'Agregar movimiento',
+  undo: 'Deshacer',
+  noTransactionsThisMonth: 'No hay movimientos en este mes',
 
   expenses: 'Gastos',
   income: 'Ingresos',

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Plus, ArrowLeft, Receipt, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Plus, Receipt, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
+import { PageShell } from '@/components/layout/PageShell';
+import { PageHeader } from '@/components/layout/PageHeader';
+import { ROUTES } from '@/lib/routes';
 import { useFixedExpenses, useCreateFixedExpense, useToggleFixedExpense } from '@/hooks/useFixedExpenses';
 import { EXPENSE_CATEGORIES } from '@/domain/categories';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -77,29 +78,17 @@ export default function FixedExpenses() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="min-h-full bg-gradient-to-br from-slate-50 via-white to-slate-50 p-4 sm:p-6"
-    >
-      <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link to="/Settings">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">{t('fixedExpenses')}</h1>
-              <p className="text-sm text-slate-500">{t('fixedExpensesSubtitle')}</p>
-            </div>
+    <PageShell width="wide">
+      <div className="space-y-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <PageHeader title={t('fixedExpenses')} subtitle={t('fixedExpensesSubtitle')} back={ROUTES.settings} />
           </div>
+          <div className="shrink-0 pt-6">
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4" />
-                {t('newFixedExpense')}
+              <Button size="icon" aria-label={t('newFixedExpense')}>
+                <Plus className="h-5 w-5" />
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -108,7 +97,7 @@ export default function FixedExpenses() {
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('description')}
                   </label>
                   <Input
@@ -119,7 +108,7 @@ export default function FixedExpenses() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-ink">
                       {t('amount')}
                     </label>
                     <Input
@@ -130,7 +119,7 @@ export default function FixedExpenses() {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-ink">
                       {t('currency')}
                     </label>
                     <Input
@@ -141,7 +130,7 @@ export default function FixedExpenses() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('category')}
                   </label>
                   <div className="mt-1 flex flex-wrap gap-2">
@@ -153,8 +142,8 @@ export default function FixedExpenses() {
                         className={cn(
                           'rounded-md px-3 py-2 text-sm font-medium transition-colors',
                           category === cat
-                            ? 'bg-slate-800 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                            ? 'bg-ink text-white'
+                            : 'bg-surface-muted text-ink-secondary hover:bg-hairline',
                         )}
                       >
                         {label(cat)}
@@ -163,7 +152,7 @@ export default function FixedExpenses() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-slate-700">
+                  <label className="text-sm font-medium text-ink">
                     {t('type')}
                   </label>
                   <div className="mt-1 flex gap-2">
@@ -185,7 +174,7 @@ export default function FixedExpenses() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-slate-700">
+                    <label className="text-sm font-medium text-ink">
                       {t('startDate')}
                     </label>
                     <Input
@@ -196,7 +185,7 @@ export default function FixedExpenses() {
                   </div>
                   {recurrence === 'installments' && (
                     <div>
-                      <label className="text-sm font-medium text-slate-700">
+                      <label className="text-sm font-medium text-ink">
                         {t('installmentCount')}
                       </label>
                       <Input
@@ -219,14 +208,15 @@ export default function FixedExpenses() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {fixedExpenses.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <Receipt className="mb-4 h-12 w-12 text-slate-300" />
-              <p className="text-sm font-medium text-slate-500">{t('noFixedExpenses')}</p>
-              <p className="text-xs text-slate-400">{t('noFixedExpensesHint')}</p>
+              <Receipt className="mb-4 h-12 w-12 text-ink-tertiary" />
+              <p className="text-sm font-medium text-ink-tertiary">{t('noFixedExpenses')}</p>
+              <p className="text-xs text-ink-tertiary">{t('noFixedExpensesHint')}</p>
             </CardContent>
           </Card>
         ) : (
@@ -240,12 +230,12 @@ export default function FixedExpenses() {
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Receipt className="h-5 w-5 text-slate-300" />
+                  <Receipt className="h-5 w-5 text-ink-tertiary" />
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-sm font-medium text-ink">
                       {fe.description}
                     </p>
-                    <p className="flex items-center gap-2 text-xs text-slate-400">
+                    <p className="flex items-center gap-2 text-xs text-ink-tertiary">
                       <span>{label(fe.category)}</span>
                       <span>·</span>
                       <span>
@@ -259,28 +249,28 @@ export default function FixedExpenses() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm font-semibold text-slate-900">
+                  <span className="text-sm font-semibold text-ink">
                     {formatCurrency(fe.amount, fe.currency)}
                   </span>
                   <span
                     className={cn(
                       'rounded-full px-2 py-0.5 text-xs font-medium',
                       fe.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-income/10 text-income'
                         : fe.status === 'cancelled'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-600',
+                          ? 'bg-expense/10 text-expense'
+                          : 'bg-surface-muted text-ink-secondary',
                     )}
                   >
                     {fe.status}
                   </span>
                   <button
                     onClick={() => handleToggle(fe.id, fe.status)}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-400 hover:text-slate-600"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-tertiary hover:text-ink-secondary"
                     aria-label={fe.status === 'active' ? 'Cancelar' : 'Activar'}
                   >
                     {fe.status === 'active' ? (
-                      <ToggleRight className="h-6 w-6 text-emerald-500" />
+                      <ToggleRight className="h-6 w-6 text-income" />
                     ) : (
                       <ToggleLeft className="h-6 w-6" />
                     )}
@@ -291,6 +281,6 @@ export default function FixedExpenses() {
           </div>
         )}
       </div>
-    </motion.div>
+    </PageShell>
   );
 }
