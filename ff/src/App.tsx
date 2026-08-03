@@ -10,6 +10,7 @@ import { useRequireAuth } from './hooks/useAuth.ts';
 import Home from './pages/Home.tsx';
 import AuthPage from './pages/AuthPage.tsx';
 import Reports from './pages/Reports.tsx';
+import AiInsights from './pages/AiInsights.tsx';
 import Savings from './pages/Savings.tsx';
 import Settings from './pages/Settings.tsx';
 import CategoriesPage from './pages/CategoriesPage.tsx';
@@ -88,6 +89,16 @@ function AppRoutes() {
           <AuthGuard>
             <Layout>
               <Reports />
+            </Layout>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path={ROUTES.aiInsights}
+        element={
+          <AuthGuard>
+            <Layout>
+              <AiInsights />
             </Layout>
           </AuthGuard>
         }

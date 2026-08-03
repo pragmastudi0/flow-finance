@@ -106,6 +106,43 @@
     bottom: calc(var(--nav-h) + var(--nav-gap) + env(safe-area-inset-bottom, 0px) + 1rem);
   }
 
+  /* "Export AI report" is `window.print()` — the browser's own Save as PDF.
+     No extra dependency, and the export is always what the user just read. */
+  @media print {
+    nav,
+    [data-print-hide] {
+      display: none !important;
+    }
+
+    /* The app is a fixed-height flex shell with an inner scroller; without
+       this, printing yields one clipped viewport instead of the document. */
+    html,
+    body,
+    #root {
+      height: auto !important;
+      overflow: visible !important;
+    }
+
+    main {
+      overflow: visible !important;
+      min-height: 0 !important;
+    }
+
+    .pb-nav {
+      padding-bottom: 0 !important;
+    }
+
+    /* Keep a card and its heading together across a page break. */
+    section,
+    li {
+      break-inside: avoid;
+    }
+
+    @page {
+      margin: 16mm;
+    }
+  }
+
   /* Amounts in a column only line up if the digits are the same width. */
   .tnum {
     font-variant-numeric: tabular-nums;

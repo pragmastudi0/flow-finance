@@ -232,6 +232,7 @@ const en = {
   // navigation
   navHome: 'Home',
   navReports: 'Reports',
+  navAi: 'AI',
   navSavings: 'Savings',
   navSettings: 'Settings',
 
@@ -447,6 +448,7 @@ const es: typeof en = {
   // navigation
   navHome: 'Inicio',
   navReports: 'Reportes',
+  navAi: 'IA',
   navSavings: 'Ahorros',
   navSettings: 'Configuración',
 

@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { House, ChartPie, PiggyBank, Settings } from 'lucide-react';
+import { House, ChartPie, Sparkles, PiggyBank, Settings } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { ROUTES } from '@/lib/routes';
@@ -9,6 +9,7 @@ import { SPRING } from '@/lib/motion';
 const NAV_ITEMS = [
   { path: ROUTES.home, labelKey: 'navHome' as const, icon: House },
   { path: ROUTES.reports, labelKey: 'navReports' as const, icon: ChartPie },
+  { path: ROUTES.aiInsights, labelKey: 'navAi' as const, icon: Sparkles },
   { path: ROUTES.savings, labelKey: 'navSavings' as const, icon: PiggyBank },
   { path: ROUTES.settings, labelKey: 'navSettings' as const, icon: Settings },
 ] as const;
