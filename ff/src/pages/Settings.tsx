@@ -10,6 +10,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ListGroup, ListRow } from '@/components/layout/ListGroup';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
+import { ApiKeyManager } from '@/components/settings/ApiKeyManager';
 
 export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
@@ -62,6 +63,13 @@ export default function Settings() {
             to={ROUTES.exchangeRate}
           />
         </ListGroup>
+
+        <div>
+          <h3 className="px-4 pb-3 text-xs font-semibold uppercase tracking-wider text-ink-tertiary">
+            {t('apiKeys')}
+          </h3>
+          <ApiKeyManager />
+        </div>
 
         <ListGroup title={t('language')}>
           <ListRow

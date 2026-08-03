@@ -124,6 +124,8 @@ const en = {
   // fixed expenses
   fixedExpenses: 'Fixed Expenses',
   fixedExpensesSubtitle: 'Manage your installments and recurring expenses',
+  apiKeys: 'AI API Keys',
+  apiKeysSubtitle: 'Configure your AI provider credentials',
   newFixedExpense: 'New Fixed Expense',
   recordMonthly: 'Record Monthly Expenses',
   recordFixedTitle: 'Record Fixed Expenses',
@@ -232,6 +234,7 @@ const en = {
   // navigation
   navHome: 'Home',
   navReports: 'Reports',
+  navAi: 'AI',
   navSavings: 'Savings',
   navSettings: 'Settings',
 
@@ -341,6 +344,8 @@ const es: typeof en = {
 
   fixedExpenses: 'Gastos Fijos',
   fixedExpensesSubtitle: 'Gestiona tus cuotas y gastos recurrentes',
+  apiKeys: 'Claves API de IA',
+  apiKeysSubtitle: 'Configura tus credenciales del proveedor de IA',
   newFixedExpense: 'Nuevo Gasto Fijo',
   recordMonthly: 'Registrar Gastos del Mes',
   recordFixedTitle: 'Registrar Gastos Fijos',
@@ -447,6 +452,7 @@ const es: typeof en = {
   // navigation
   navHome: 'Inicio',
   navReports: 'Reportes',
+  navAi: 'IA',
   navSavings: 'Ahorros',
   navSettings: 'Configuración',
 
