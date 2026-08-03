@@ -87,12 +87,8 @@ Deno.serve(async (req) => {
     return json({ error: 'no_data' }, 422);
   }
 
-  // Load user's API keys from auth metadata if available
-  const { data: authUser, error: authError } = await admin.auth.admin.getUserById(user.id);
-  const userApiKeys = authUser?.user?.user_metadata?.apiKeys;
-
-  if (authError) console.warn('Failed to load user metadata:', authError);
-
+  // Use user's API keys from auth metadata if available, fallback to env secrets
+  const userApiKeys = user.user_metadata?.apiKeys;
   const provider = getProvider(userApiKeys);
   let report;
   try {
