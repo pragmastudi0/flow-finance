@@ -9,6 +9,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { getProvider } from '../_shared/ai.ts';
 import { buildSnapshot } from '../_shared/finance.ts';
 
+const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
@@ -59,7 +61,7 @@ Deno.serve(async (req) => {
 
   const url = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
-  if (!url || !anonKey) return json({ error: 'server_misconfigured' }, 500);
+  if (!url || !anonKey || !serviceKey) return json({ error: 'server_misconfigured' }, 500);
 
   const asUser = createClient(url, anonKey, {
     global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
@@ -68,6 +70,8 @@ Deno.serve(async (req) => {
   const { data: auth } = await asUser.auth.getUser();
   const user = auth?.user;
   if (!user) return json({ error: 'unauthorized' }, 401);
+
+  const admin = createClient(url, serviceKey);
 
   let body: { month?: unknown; question?: unknown; history?: unknown };
   try {
@@ -89,6 +93,12 @@ Deno.serve(async (req) => {
     return json({ error: 'snapshot_failed' }, 500);
   }
 
+  // Load user's API keys from auth metadata if available
+  const { data: authUser, error: authError } = await admin.auth.admin.getUserById(user.id);
+  const userApiKeys = authUser?.user?.user_metadata?.apiKeys;
+
+  if (authError) console.warn('Failed to load user metadata:', authError);
+
   const history = parseHistory(body.history);
   const transcript = history.map((t) => `${t.role === 'user' ? 'Usuario' : 'Asistente'}: ${t.content}`).join('\n');
 
@@ -99,7 +109,7 @@ Deno.serve(async (req) => {
   ].join('\n');
 
   try {
-    const answer = await getProvider().complete({ system: SYSTEM, prompt, temperature: 0.3 });
+    const answer = await getProvider(userApiKeys).complete({ system: SYSTEM, prompt, temperature: 0.3 });
     const text = answer.trim();
     if (!text) return json({ error: 'ai_failed' }, 502);
     return json({ answer: text });

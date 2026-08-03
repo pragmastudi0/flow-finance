@@ -41,16 +41,17 @@ function env(name: string): string {
   return value;
 }
 
-function gemini(model: string): CompletionProvider {
+function gemini(model: string, apiKey?: string): CompletionProvider {
   return {
     name: 'gemini',
     model,
     async complete({ system, prompt, json, temperature = 0.2 }) {
+      const key = apiKey || env('GEMINI_API_KEY');
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env('GEMINI_API_KEY') },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -78,14 +79,16 @@ function openaiCompatible(
   model: string,
   url: string,
   keyName: string,
+  apiKey?: string,
 ): CompletionProvider {
   return {
     name,
     model,
     async complete({ system, prompt, json, temperature = 0.2 }) {
+      const key = apiKey || env(keyName);
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env(keyName)}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({
           model,
           temperature,
@@ -104,18 +107,18 @@ function openaiCompatible(
 }
 
 /** Reads `AI_PROVIDER` / `AI_MODEL`, falling back to Gemini 2.5 Flash. */
-export function getProvider(): CompletionProvider {
+export function getProvider(apiKeys?: { gemini?: string; groq?: string; openai?: string }): CompletionProvider {
   const raw = (Deno.env.get('AI_PROVIDER') ?? 'gemini').toLowerCase();
   const name: ProviderName = raw === 'groq' || raw === 'openai' ? raw : 'gemini';
   const model = Deno.env.get('AI_MODEL') ?? DEFAULT_MODELS[name];
 
   switch (name) {
     case 'groq':
-      return openaiCompatible('groq', model, 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY');
+      return openaiCompatible('groq', model, 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY', apiKeys?.groq);
     case 'openai':
-      return openaiCompatible('openai', model, 'https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY');
+      return openaiCompatible('openai', model, 'https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY', apiKeys?.openai);
     default:
-      return gemini(model);
+      return gemini(model, apiKeys?.gemini);
   }
 }
 
