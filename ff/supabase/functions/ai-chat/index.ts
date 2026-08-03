@@ -6,8 +6,8 @@
  * in-memory by design and nothing is persisted here.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { getProvider } from 'file://./_shared/ai.ts';
-import { buildSnapshot } from 'file://./_shared/finance.ts';
+import { getProvider } from '~shared/ai.ts';
+import { buildSnapshot } from '~shared/finance.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',

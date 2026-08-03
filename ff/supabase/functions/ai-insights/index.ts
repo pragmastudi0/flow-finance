@@ -6,9 +6,9 @@
  * and the model key never leaves the edge runtime.
  */
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { extractJson, getProvider } from 'file://./_shared/ai.ts';
-import { buildSnapshot } from 'file://./_shared/finance.ts';
-import { parseReport, REPORT_SYSTEM_PROMPT } from 'file://./_shared/report.ts';
+import { extractJson, getProvider } from '~shared/ai.ts';
+import { buildSnapshot } from '~shared/finance.ts';
+import { parseReport, REPORT_SYSTEM_PROMPT } from '~shared/report.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
