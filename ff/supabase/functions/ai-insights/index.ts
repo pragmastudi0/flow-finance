@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
     return json({ error: 'no_data' }, 422);
   }
 
-  const provider = getProvider();
+  const userApiKeys = user.user_metadata?.apiKeys;
+  const provider = getProvider(userApiKeys);
   let report;
   try {
     const raw = await provider.complete({

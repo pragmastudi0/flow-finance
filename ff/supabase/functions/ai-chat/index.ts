@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
     return json({ error: 'snapshot_failed' }, 500);
   }
 
+  const userApiKeys = user.user_metadata?.apiKeys;
   const history = parseHistory(body.history);
   const transcript = history.map((t) => `${t.role === 'user' ? 'Usuario' : 'Asistente'}: ${t.content}`).join('\n');
 
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
   ].join('\n');
 
   try {
-    const answer = await getProvider().complete({ system: SYSTEM, prompt, temperature: 0.3 });
+    const answer = await getProvider(userApiKeys).complete({ system: SYSTEM, prompt, temperature: 0.3 });
     const text = answer.trim();
     if (!text) return json({ error: 'ai_failed' }, 502);
     return json({ answer: text });

@@ -10,6 +10,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ListGroup, ListRow } from '@/components/layout/ListGroup';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
+import { ApiKeyManager } from '@/components/settings/ApiKeyManager';
 
 export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
@@ -61,6 +62,12 @@ export default function Settings() {
             description={t('usdBlueSubtitle')}
             to={ROUTES.exchangeRate}
           />
+        </ListGroup>
+
+        <ListGroup title={language === 'es' ? 'Claves API de IA' : 'AI API Keys'}>
+          <div className="px-4 py-3">
+            <ApiKeyManager />
+          </div>
         </ListGroup>
 
         <ListGroup title={t('language')}>
