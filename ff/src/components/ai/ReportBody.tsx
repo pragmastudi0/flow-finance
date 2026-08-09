@@ -189,7 +189,7 @@ export function ReportBody({ report }: { report: AiReport }) {
       <InsightSection
         icon={ListChecks}
         title={es ? 'Tres acciones prioritarias' : 'Three priority actions'}
-        index={6}
+        index={7}
       >
         <InsightSteps items={report.priorityActions} />
       </InsightSection>
@@ -199,7 +199,7 @@ export function ReportBody({ report }: { report: AiReport }) {
       <InsightSection
         icon={AlertTriangle}
         title={es ? 'Datos que faltan' : 'Missing data'}
-        index={6}
+        index={8}
       >
         <InsightList items={report.missingData} />
       </InsightSection>
