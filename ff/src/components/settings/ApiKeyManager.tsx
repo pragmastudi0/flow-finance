@@ -12,8 +12,16 @@ interface ApiKeys {
   gemini?: string;
   groq?: string;
   openai?: string;
+  anthropic?: string;
   provider?: string;
 }
+
+const PROVIDERS = [
+  { id: 'gemini', label: 'Google Gemini', placeholder: 'AIzaSy...' },
+  { id: 'groq', label: 'Groq', placeholder: 'gsk_...' },
+  { id: 'openai', label: 'OpenAI', placeholder: 'sk-...' },
+  { id: 'anthropic', label: 'Anthropic (Claude)', placeholder: 'sk-ant-...' },
+] as const;
 
 export function ApiKeyManager() {
   const { language } = useLanguage();
@@ -22,6 +30,7 @@ export function ApiKeyManager() {
     gemini: false,
     groq: false,
     openai: false,
+    anthropic: false,
   });
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!isDemoMode());
@@ -81,12 +90,30 @@ export function ApiKeyManager() {
 
   return (
     <div className="space-y-4">
+      <ListGroup title={language === 'es' ? 'Proveedor activo' : 'Active provider'}>
+        <div className="flex flex-wrap gap-2 px-4 py-3">
+          {PROVIDERS.map(({ id, label }) => {
+            const active = (keys.provider ?? 'gemini') === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setKeys({ ...keys, provider: id })}
+                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                  active
+                    ? 'bg-ink text-surface border-ink'
+                    : 'border-hairline text-ink-secondary hover:bg-surface-muted'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </ListGroup>
+
       <ListGroup title={language === 'es' ? 'Claves API' : 'API Keys'}>
-        {[
-          { id: 'gemini', label: 'Google Gemini', placeholder: 'AIzaSy...' },
-          { id: 'groq', label: 'Groq', placeholder: 'gsk_...' },
-          { id: 'openai', label: 'OpenAI', placeholder: 'sk-...' },
-        ].map(({ id, label, placeholder }) => (
+        {PROVIDERS.map(({ id, label, placeholder }) => (
           <div key={id} className="border-b border-hairline px-4 py-3 last:border-0">
             <label className="block text-sm font-medium text-ink-secondary mb-2">{label}</label>
             <div className="flex items-center gap-2">
