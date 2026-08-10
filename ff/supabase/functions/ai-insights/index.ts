@@ -89,7 +89,14 @@ Deno.serve(async (req) => {
 
   // Use user's API keys from auth metadata if available, fallback to env secrets
   const userApiKeys = user.user_metadata?.apiKeys;
-  const provider = getProvider(userApiKeys);
+  let provider;
+  try {
+    provider = getProvider(userApiKeys);
+  } catch (e) {
+    console.error('provider initialization failed', e);
+    return json({ error: 'ai_failed', detail: 'Provider not configured' }, 502);
+  }
+
   let report;
   try {
     const raw = await provider.complete({
