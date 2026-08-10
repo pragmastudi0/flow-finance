@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import type { AiProvider } from './provider.ts';
 import { AiError, type AiErrorCode, type AiReportResult, type ChatTurn } from './types.ts';
@@ -29,21 +30,26 @@ function errorFromBody(body: Record<string, unknown>): AiError | null {
  * supabase-js routes them through `error` (a `FunctionsHttpError`) instead of
  * `data`. Its `context` is the raw `Response` — read that to recover the real
  * code rather than collapsing every HTTP error into a generic one.
+ *
+ * Anything that isn't a `FunctionsHttpError` never got a response at all
+ * (`FunctionsFetchError` for a failed fetch, `FunctionsRelayError` for the
+ * Supabase relay itself) — that's a connectivity problem, not a "Supabase
+ * isn't configured" problem, regardless of what the browser's error message
+ * happens to say (Safari's is just "Load failed", which matches nothing).
  */
 async function unwrap(data: unknown, error: unknown): Promise<Record<string, unknown>> {
   if (error) {
-    const context = (error as { context?: unknown })?.context;
-    if (context instanceof Response) {
+    if (error instanceof FunctionsHttpError) {
       try {
-        const fromBody = errorFromBody(await context.clone().json());
+        const fromBody = errorFromBody(await error.context.clone().json());
         if (fromBody) throw fromBody;
       } catch (e) {
         if (e instanceof AiError) throw e;
         // body wasn't JSON (or had no `error` field) — fall through below.
       }
+      throw new AiError('unknown', error.message);
     }
-    const message = error instanceof Error ? error.message : String(error);
-    throw new AiError(/fetch|network/i.test(message) ? 'offline' : 'unavailable', message);
+    throw new AiError('offline', error instanceof Error ? error.message : String(error));
   }
   const body = (data ?? {}) as Record<string, unknown>;
   const fromBody = errorFromBody(body);
