@@ -11,7 +11,7 @@
  * bundle, so a browser-side key is a published key.
  */
 
-export type ProviderName = 'gemini' | 'groq' | 'openai';
+export type ProviderName = 'gemini' | 'groq' | 'openai' | 'anthropic';
 
 export interface TextRequest {
   /** Instructions that frame the task. Sent as a system role where supported. */
@@ -33,6 +33,7 @@ const DEFAULT_MODELS: Record<ProviderName, string> = {
   gemini: 'gemini-2.5-flash',
   groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
   openai: 'gpt-4o-mini',
+  anthropic: 'claude-haiku-4-5-20251001',
 };
 
 function env(name: string): string {
@@ -73,6 +74,39 @@ function gemini(model: string, apiKey?: string): CompletionProvider {
   };
 }
 
+function anthropic(model: string, apiKey?: string): CompletionProvider {
+  return {
+    name: 'anthropic',
+    model,
+    async complete({ system, prompt, temperature = 0.2 }) {
+      const key = apiKey || env('ANTHROPIC_API_KEY');
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4096,
+          temperature,
+          system,
+          messages: [{ role: 'user', content: prompt }],
+        }),
+      });
+      if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+      const data = await res.json();
+      return (
+        data?.content
+          ?.filter((b: { type?: string }) => b.type === 'text')
+          .map((b: { text?: string }) => b.text ?? '')
+          .join('') ?? ''
+      );
+    },
+  };
+}
+
 /** Groq and OpenAI share the chat-completions shape. */
 function openaiCompatible(
   name: 'groq' | 'openai',
@@ -106,10 +140,26 @@ function openaiCompatible(
   };
 }
 
-/** Reads `AI_PROVIDER` / `AI_MODEL`, falling back to Gemini 2.5 Flash. */
-export function getProvider(apiKeys?: { gemini?: string; groq?: string; openai?: string }): CompletionProvider {
-  const raw = (Deno.env.get('AI_PROVIDER') ?? 'gemini').toLowerCase();
-  const name: ProviderName = raw === 'groq' || raw === 'openai' ? raw : 'gemini';
+const PROVIDER_NAMES: ProviderName[] = ['gemini', 'groq', 'openai', 'anthropic'];
+
+export interface UserApiKeys {
+  gemini?: string;
+  groq?: string;
+  openai?: string;
+  anthropic?: string;
+  /** The provider the user picked in Settings; overrides the `AI_PROVIDER` secret. */
+  provider?: string;
+}
+
+/**
+ * Picks the provider the user selected in Settings, falling back to the
+ * `AI_PROVIDER` / `AI_MODEL` secrets, and finally to Gemini 2.5 Flash.
+ */
+export function getProvider(apiKeys?: UserApiKeys): CompletionProvider {
+  const userChoice = apiKeys?.provider?.toLowerCase();
+  const envChoice = Deno.env.get('AI_PROVIDER')?.toLowerCase();
+  const raw = userChoice || envChoice || 'gemini';
+  const name: ProviderName = PROVIDER_NAMES.includes(raw as ProviderName) ? (raw as ProviderName) : 'gemini';
   const model = Deno.env.get('AI_MODEL') ?? DEFAULT_MODELS[name];
 
   switch (name) {
@@ -117,6 +167,8 @@ export function getProvider(apiKeys?: { gemini?: string; groq?: string; openai?:
       return openaiCompatible('groq', model, 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY', apiKeys?.groq);
     case 'openai':
       return openaiCompatible('openai', model, 'https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY', apiKeys?.openai);
+    case 'anthropic':
+      return anthropic(model, apiKeys?.anthropic);
     default:
       return gemini(model, apiKeys?.gemini);
   }
