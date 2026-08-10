@@ -18,17 +18,37 @@ const ERROR_CODES: AiErrorCode[] = [
   'unavailable',
 ];
 
-/** Edge functions signal failure in the body, so a 200 can still be an error. */
-function assertOk(data: unknown, error: unknown): asserts data is Record<string, unknown> {
+function errorFromBody(body: Record<string, unknown>): AiError | null {
+  if (typeof body.error !== 'string') return null;
+  const code = ERROR_CODES.find((c) => c === body.error) ?? 'unknown';
+  return new AiError(code, body.error);
+}
+
+/**
+ * Edge functions signal failure with a non-2xx status and a JSON body, so
+ * supabase-js routes them through `error` (a `FunctionsHttpError`) instead of
+ * `data`. Its `context` is the raw `Response` — read that to recover the real
+ * code rather than collapsing every HTTP error into a generic one.
+ */
+async function unwrap(data: unknown, error: unknown): Promise<Record<string, unknown>> {
   if (error) {
+    const context = (error as { context?: unknown })?.context;
+    if (context instanceof Response) {
+      try {
+        const fromBody = errorFromBody(await context.clone().json());
+        if (fromBody) throw fromBody;
+      } catch (e) {
+        if (e instanceof AiError) throw e;
+        // body wasn't JSON (or had no `error` field) — fall through below.
+      }
+    }
     const message = error instanceof Error ? error.message : String(error);
     throw new AiError(/fetch|network/i.test(message) ? 'offline' : 'unavailable', message);
   }
   const body = (data ?? {}) as Record<string, unknown>;
-  if (typeof body.error === 'string') {
-    const code = ERROR_CODES.find((c) => c === body.error) ?? 'unknown';
-    throw new AiError(code, body.error);
-  }
+  const fromBody = errorFromBody(body);
+  if (fromBody) throw fromBody;
+  return body;
 }
 
 export const supabaseAi: AiProvider = {
@@ -38,9 +58,9 @@ export const supabaseAi: AiProvider = {
     const { data, error } = await supabase.functions.invoke('ai-insights', {
       body: { month, force: options?.force === true },
     });
-    assertOk(data, error);
+    const body = await unwrap(data, error);
 
-    const result = data as unknown as AiReportResult;
+    const result = body as unknown as AiReportResult;
     if (!result?.report) throw new AiError('unknown', 'missing report');
     return result;
   },
@@ -51,9 +71,9 @@ export const supabaseAi: AiProvider = {
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: { month, question, history: history satisfies ChatTurn[] },
     });
-    assertOk(data, error);
+    const body = await unwrap(data, error);
 
-    const answer = (data as { answer?: unknown }).answer;
+    const answer = (body as { answer?: unknown }).answer;
     if (typeof answer !== 'string' || !answer) throw new AiError('ai_failed', 'empty answer');
     return answer;
   },
