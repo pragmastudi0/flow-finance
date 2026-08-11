@@ -92,6 +92,14 @@ Deno.serve(async (req) => {
   // Use user's API keys from auth metadata if available, fallback to env secrets
   const userApiKeys = user.user_metadata?.apiKeys;
 
+  let provider;
+  try {
+    provider = getProvider(userApiKeys);
+  } catch (e) {
+    console.error('provider initialization failed', e);
+    return json({ error: 'ai_failed', detail: 'Provider not configured' }, 502);
+  }
+
   const history = parseHistory(body.history);
   const transcript = history.map((t) => `${t.role === 'user' ? 'Usuario' : 'Asistente'}: ${t.content}`).join('\n');
 
@@ -102,7 +110,7 @@ Deno.serve(async (req) => {
   ].join('\n');
 
   try {
-    const answer = await getProvider(userApiKeys).complete({ system: SYSTEM, prompt, temperature: 0.3 });
+    const answer = await provider.complete({ system: SYSTEM, prompt, temperature: 0.3 });
     const text = answer.trim();
     if (!text) return json({ error: 'ai_failed' }, 502);
     return json({ answer: text });
