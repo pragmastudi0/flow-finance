@@ -17,6 +17,8 @@ export interface ParseContext {
   type: TxType;
   /** Learned keyword→category pairs for THIS user. Highest priority. */
   learnings?: Learning[];
+  /** Names of the categories this user created, matched by name. */
+  customCategories?: string[];
   /** ARS per USD. Required to accept a `usd` entry. */
   usdRate?: number | null;
   /** Injectable for deterministic tests. */
@@ -155,11 +157,17 @@ export function guessCategory(
   text: string,
   type: TxType,
   learnings: Learning[] = [],
+  customCategories: string[] = [],
 ): string {
   const haystack = fold(text);
 
   const learned = learnings.find((l) => haystack.includes(fold(l.keyword)));
   if (learned) return learned.category;
+
+  // A category the user created by hand outranks the built-in keyword lists:
+  // they chose that name, so naming it in the entry is an explicit signal.
+  const named = customCategories.find((name) => matchesKeyword(haystack, name));
+  if (named) return named;
 
   let best = FALLBACK_CATEGORY[type];
   let bestScore = 0;
@@ -197,7 +205,13 @@ const AMOUNT_PATTERNS = [
  */
 export function parseEntry(
   input: string,
-  { type, learnings = [], usdRate = null, today = new Date() }: ParseContext,
+  {
+    type,
+    learnings = [],
+    customCategories = [],
+    usdRate = null,
+    today = new Date(),
+  }: ParseContext,
 ): ParsedTransaction | null {
   const rawInput = input;
   const isUsd = /\busd\b|u\$s/i.test(input);
@@ -229,7 +243,7 @@ export function parseEntry(
         amount,
         calculation: expression.trim(),
         description: description || fallbackDescription(type, learnings, ''),
-        category: guessCategory(description, type, learnings),
+        category: guessCategory(description, type, learnings, customCategories),
       };
     }
   }
@@ -255,7 +269,7 @@ export function parseEntry(
     .replace(/\s+[\d,.]+$/, '')
     .trim();
 
-  const category = guessCategory(description || text, type, learnings);
+  const category = guessCategory(description || text, type, learnings, customCategories);
 
   return {
     ...base,

@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
-import { CATEGORY_COLORS } from '@/domain/categories';
+import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { chartFill } from '@/lib/color';
 import { formatCurrency } from '@/lib/format';
 import { AnimatedSegment } from './AnimatedSegment';
@@ -45,6 +45,7 @@ function Empty({ text }: { text: string }) {
 export function CategoryChart({ view, onViewChange, byCategory, overTime }: CategoryChartProps) {
   const { t } = useLanguage();
   const categoryLabel = useCategoryLabel();
+  const { colorOf } = useCategoryVisuals();
 
   return (
         <section className="space-y-3">
@@ -81,7 +82,7 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
                       {byCategory.map((entry) => (
                         <Cell
                           key={entry.name}
-                          fill={chartFill(CATEGORY_COLORS[entry.name] || '#64748b')}
+                          fill={chartFill(colorOf(entry.name))}
                         />
                       ))}
                     </Pie>
@@ -122,7 +123,7 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
                 <li key={entry.name} className="flex items-center gap-2.5">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: chartFill(CATEGORY_COLORS[entry.name] || '#64748b') }}
+                    style={{ backgroundColor: chartFill(colorOf(entry.name)) }}
                   />
                   <span className="min-w-0 flex-1 truncate text-[14px] text-ink-secondary">
                     {categoryLabel(entry.name)}

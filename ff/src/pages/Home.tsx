@@ -7,6 +7,7 @@ import { enUS, es } from 'date-fns/locale';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useCategoryLearnings } from '@/hooks/useCategories';
+import { useCustomCategoryNames } from '@/hooks/useCategoryOptions';
 import { useMonthFilter } from '@/hooks/useMonthFilter';
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { groupTransactions, parseDay } from '@/domain/grouping';
@@ -40,6 +41,7 @@ export default function Home() {
   const [editing, setEditing] = useState<Transaction | null>(null);
 
   const { data: learnings } = useCategoryLearnings(mode);
+  const customCategoryNames = useCustomCategoryNames(mode);
   const month = useMonthFilter();
   const actions = useTransactionActions({ showMonthOf: month.showMonthOf });
 
@@ -67,11 +69,13 @@ export default function Home() {
 
   /** True when the text was understood; the sheet clears its field on that. */
   const handleParse = (text: string): boolean => {
-    // Without `learnings` the per-user categories are ignored, and without
-    // `usdRate` every USD entry is rejected outright.
+    // Without `learnings` the learned keywords are ignored, without
+    // `customCategories` the parser can only ever land on a built-in, and
+    // without `usdRate` every USD entry is rejected outright.
     const parsed = parseEntry(text, {
       type: mode,
       learnings: learnings ?? [],
+      customCategories: customCategoryNames,
       usdRate: actions.usdRate,
     });
     if (parsed) {

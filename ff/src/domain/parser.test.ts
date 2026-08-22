@@ -144,3 +144,47 @@ test('keeps the raw input verbatim', () => {
   const r = expense('  3*20 cafés  ');
   assert.equal(r?.rawInput, '  3*20 cafés  ');
 });
+
+// ─── categorías propias del usuario ──────────────────────────────────────────
+
+test('classifies into a category the user created, by name', () => {
+  // The entry never names the category, so the built-in keywords still decide.
+  assert.equal(
+    guessCategory('comida para el perro', 'expense', [], ['Mascotas']),
+    'food',
+  );
+  assert.equal(
+    guessCategory('veterinaria de mascotas', 'expense', [], ['Mascotas']),
+    'Mascotas',
+  );
+});
+
+test('a custom category outranks the built-in keyword lists', () => {
+  // "cafe" is a `food` keyword, so without the custom pass this lands on food.
+  assert.equal(
+    guessCategory('cafe con leche', 'expense', [], ['Cafe']),
+    'Cafe',
+  );
+});
+
+test('a learned keyword still wins over a custom category name', () => {
+  assert.equal(
+    guessCategory(
+      'mascotas',
+      'expense',
+      [{ keyword: 'mascotas', category: 'health' }],
+      ['Mascotas'],
+    ),
+    'health',
+  );
+});
+
+test('parseEntry carries the custom category through', () => {
+  const r = expense('3000 alimento para mascotas', { customCategories: ['Mascotas'] });
+  assert.equal(r?.category, 'Mascotas');
+});
+
+test('ignores custom categories that the entry never names', () => {
+  const r = expense('1500 uber al centro', { customCategories: ['Mascotas'] });
+  assert.equal(r?.category, 'transport');
+});
