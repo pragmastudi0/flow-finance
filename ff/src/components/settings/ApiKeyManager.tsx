@@ -26,6 +26,8 @@ const PROVIDERS = [
 export function ApiKeyManager() {
   const { language } = useLanguage();
   const [keys, setKeys] = useState<ApiKeys>({});
+  /** What's persisted, so "edited" means changed rather than merely non-empty. */
+  const [saved, setSaved] = useState<ApiKeys>({});
   const [shown, setShown] = useState<Record<string, boolean>>({
     gemini: false,
     groq: false,
@@ -46,6 +48,7 @@ export function ApiKeyManager() {
 
       const apiKeys = data.user.user_metadata?.apiKeys ?? {};
       setKeys(apiKeys);
+      setSaved(apiKeys);
     } catch (error) {
       console.error('Error loading API keys:', error);
     } finally {
@@ -69,6 +72,7 @@ export function ApiKeyManager() {
 
       if (error) throw error;
 
+      setSaved(keys);
       toast.success(language === 'es' ? 'API keys guardadas' : 'API keys saved');
     } catch (error) {
       console.error('Error saving API keys:', error);
@@ -78,7 +82,7 @@ export function ApiKeyManager() {
     }
   }
 
-  const isEdited = JSON.stringify(keys) !== JSON.stringify({});
+  const isEdited = JSON.stringify(keys) !== JSON.stringify(saved);
 
   if (loading) {
     return (
@@ -141,7 +145,7 @@ export function ApiKeyManager() {
           <Button
             variant="outline"
             className="flex-1"
-            onClick={() => loadApiKeys()}
+            onClick={() => setKeys(saved)}
             disabled={saving}
           >
             {language === 'es' ? 'Cancelar' : 'Cancel'}

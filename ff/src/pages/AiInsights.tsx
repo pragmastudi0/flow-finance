@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FileText, RefreshCw, Sparkles } from 'lucide-react';
 
 import { cn } from '@/lib/cn';
+import { ROUTES } from '@/lib/routes';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { monthKey, useAiChat, useAiReport, useGenerateAiReport } from '@/hooks/useAiInsights';
 import { PageShell } from '@/components/layout/PageShell';
@@ -14,30 +16,50 @@ import type { AiError } from '@/services/ai';
 
 function ErrorState({ error, onRetry }: { error: AiError; onRetry: () => void }) {
   const { language } = useLanguage();
+  const navigate = useNavigate();
   const es = language === 'es';
 
-  const message =
-    error.code === 'no_data'
-      ? es
-        ? 'Todavía no hay movimientos este mes para analizar.'
-        : 'No transactions this month to analyse yet.'
-      : error.code === 'unavailable'
-        ? es
-          ? 'El análisis con IA necesita Supabase configurado (no está disponible en modo demo).'
-          : 'AI analysis requires Supabase to be configured (not available in demo mode).'
-        : error.code === 'offline'
-          ? es
-            ? 'Sin conexión. Revisá tu red e intentá de nuevo.'
-            : 'No connection. Check your network and try again.'
-          : es
-            ? 'No pude generar el análisis. Probá de nuevo en un momento.'
-            : 'Could not generate the analysis. Please try again shortly.';
+  const MESSAGES: Partial<Record<AiError['code'], { es: string; en: string }>> = {
+    no_data: {
+      es: 'Todavía no hay movimientos este mes para analizar.',
+      en: 'No transactions this month to analyse yet.',
+    },
+    no_api_key: {
+      es: 'Falta configurar una clave de IA. Agregá la tuya en Configuración.',
+      en: 'No AI key configured. Add yours in Settings.',
+    },
+    unavailable: {
+      es: 'El análisis con IA necesita Supabase configurado (no está disponible en modo demo).',
+      en: 'AI analysis requires Supabase to be configured (not available in demo mode).',
+    },
+    offline: {
+      es: 'Sin conexión. Revisá tu red e intentá de nuevo.',
+      en: 'No connection. Check your network and try again.',
+    },
+  };
 
-  const retryable = error.code !== 'no_data' && error.code !== 'unavailable';
+  const copy = MESSAGES[error.code];
+  const message = copy
+    ? es
+      ? copy.es
+      : copy.en
+    : es
+      ? 'No pude generar el análisis. Probá de nuevo en un momento.'
+      : 'Could not generate the analysis. Please try again shortly.';
+
+  // Retrying only helps a transient failure. Missing data, demo mode and a
+  // missing key all need the user to go do something else first.
+  const TERMINAL: AiError['code'][] = ['no_data', 'unavailable', 'no_api_key'];
+  const retryable = !TERMINAL.includes(error.code);
 
   return (
     <div className="py-16 text-center">
       <p className="mx-auto max-w-xs text-[15px] leading-relaxed text-ink-tertiary">{message}</p>
+      {error.code === 'no_api_key' && (
+        <Button variant="outline" className="mt-5" onClick={() => navigate(ROUTES.settings)}>
+          {es ? 'Ir a Configuración' : 'Go to Settings'}
+        </Button>
+      )}
       {retryable && (
         <Button variant="outline" className="mt-5" onClick={onRetry}>
           {es ? 'Reintentar' : 'Retry'}

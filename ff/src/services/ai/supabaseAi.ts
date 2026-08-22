@@ -14,6 +14,7 @@ import { AiError, type AiErrorCode, type AiReportResult, type ChatTurn } from '.
 const ERROR_CODES: AiErrorCode[] = [
   'unauthorized',
   'no_data',
+  'no_api_key',
   'rate_limited',
   'ai_failed',
   'unavailable',

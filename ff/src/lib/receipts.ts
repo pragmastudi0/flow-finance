@@ -1,3 +1,4 @@
+import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase } from './supabase.ts';
 import type { DocumentExtraction } from '../domain/document.ts';
 
@@ -10,6 +11,10 @@ export class DocumentError extends Error {
     readonly code:
       | 'unauthorized'
       | 'daily_limit_reached'
+      /** No model key configured — the user has to add one in Settings. */
+      | 'no_api_key'
+      /** The selected provider can't read this file type (e.g. a PDF). */
+      | 'unsupported_media'
       | 'analysis_failed'
       | 'upload_failed'
       | 'unknown',
@@ -27,6 +32,37 @@ const EXTENSIONS: Record<string, string> = {
   'image/heic': 'heic',
   'application/pdf': 'pdf',
 };
+
+const CODES: DocumentError['code'][] = [
+  'unauthorized',
+  'daily_limit_reached',
+  'no_api_key',
+  'unsupported_media',
+  'analysis_failed',
+];
+
+const codeFor = (raw: unknown): DocumentError['code'] =>
+  CODES.find((c) => c === raw) ?? 'analysis_failed';
+
+/**
+ * Edge functions signal failure with a non-2xx status and a JSON body, which
+ * supabase-js routes through `error` rather than `data`. `FunctionsHttpError`
+ * carries the raw `Response` on `context` — read it so a missing key doesn't
+ * read as "analysis failed, try again".
+ */
+async function documentErrorFrom(error: unknown): Promise<DocumentError> {
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = (await error.context.clone().json()) as { error?: unknown; limit?: number };
+      if (typeof body.error === 'string') {
+        return new DocumentError(codeFor(body.error), body.error, body.limit);
+      }
+    } catch {
+      // body wasn't JSON — fall through to the generic message.
+    }
+  }
+  return new DocumentError('analysis_failed', error instanceof Error ? error.message : String(error));
+}
 
 export async function analyzeDocument(file: File): Promise<AnalyzedDocument> {
   const { data: auth } = await supabase.auth.getUser();
@@ -57,10 +93,15 @@ export async function analyzeDocument(file: File): Promise<AnalyzedDocument> {
     { body: { receiptId: receipt.id } },
   );
 
-  if (error) throw new DocumentError('analysis_failed', error.message);
+  // A non-2xx reply arrives as `error` with the JSON body on `error.context`,
+  // so read that before collapsing everything into a generic failure.
+  if (error) throw await documentErrorFrom(error);
   if (data && 'error' in data) {
-    const code = data.error === 'daily_limit_reached' ? 'daily_limit_reached' : 'analysis_failed';
-    throw new DocumentError(code, data.error, 'limit' in data ? data.limit : undefined);
+    throw new DocumentError(
+      codeFor(data.error),
+      data.error,
+      'limit' in data ? data.limit : undefined,
+    );
   }
   if (!data) throw new DocumentError('unknown', 'Respuesta vacía del analizador');
 

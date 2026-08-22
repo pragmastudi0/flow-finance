@@ -1,4 +1,9 @@
+// Relative rather than a `~shared/` alias: the alias only resolves when an
+// import map is uploaded alongside the function, and a deploy that drops it
+// fails at boot instead of at type-check. A relative path always resolves.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { getProvider, MissingApiKeyError, UnsupportedMediaError } from '../_shared/ai.ts';
+import { jsonResponse, preflight } from '../_shared/cors.ts';
 
 type Currency = 'ARS' | 'USD';
 
@@ -157,101 +162,21 @@ function parseDocumentResponse(
 }
 
 const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? 25);
-const PROVIDER = (Deno.env.get('AI_PROVIDER') ?? 'gemini').toLowerCase();
-
-const DEFAULT_MODELS: Record<string, string> = {
-  gemini: 'gemini-2.5-flash',
-  groq: 'meta-llama/llama-4-scout-17b-16e-instruct',
-};
-
-const MODEL = Deno.env.get('AI_MODEL') ?? DEFAULT_MODELS[PROVIDER] ?? DEFAULT_MODELS.gemini;
-
-const cors = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
-
-interface VisionRequest {
-  prompt: string;
-  imageBase64: string;
-  mimeType: string;
-}
-
-async function callGemini({ prompt, imageBase64, mimeType }: VisionRequest): Promise<string> {
-  const key = Deno.env.get('GEMINI_API_KEY');
-  if (!key) throw new Error('GEMINI_API_KEY is not set');
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: imageBase64 } }],
-          },
-        ],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json' },
-      }),
-    },
-  );
-
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
-
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? '').join('') ?? '';
-}
-
-async function callGroq({ prompt, imageBase64, mimeType }: VisionRequest): Promise<string> {
-  const key = Deno.env.get('GROQ_API_KEY');
-  if (!key) throw new Error('GROQ_API_KEY is not set');
-
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) throw new Error(`Groq ${res.status}: ${(await res.text()).slice(0, 300)}`);
-
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? '';
-}
-
-const analyze = PROVIDER === 'groq' ? callGroq : callGemini;
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method === 'OPTIONS') return preflight(req);
+
+  const json = (body: unknown, status = 200) => jsonResponse(req, body, status);
+
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const authHeader = req.headers.get('Authorization') ?? '';
   if (!authHeader.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
 
-  const url = Deno.env.get('SUPABASE_URL')!;
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !anonKey || !serviceKey) return json({ error: 'server_misconfigured' }, 500);
 
   const asUser = createClient(url, anonKey, {
     global: { headers: { Authorization: authHeader } },
@@ -278,6 +203,18 @@ Deno.serve(async (req) => {
 
   if (loadError || !receipt) return json({ error: 'receipt_not_found' }, 404);
   if (receipt.status === 'done') return json({ error: 'already_analyzed' }, 409);
+
+  // The user's own key from Settings, falling back to the project secrets —
+  // resolved before the quota is claimed so a missing key doesn't burn a call.
+  let provider;
+  try {
+    provider = getProvider(user.user_metadata?.apiKeys);
+  } catch (e) {
+    if (e instanceof MissingApiKeyError) {
+      return json({ error: 'no_api_key', provider: e.provider }, 400);
+    }
+    throw e;
+  }
 
   const { data: allowed } = await admin.rpc('claim_ai_call', {
     p_user_id: user.id,
@@ -310,11 +247,30 @@ Deno.serve(async (req) => {
       binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     }
 
-    const raw = await analyze({
-      prompt: DOCUMENT_PROMPT,
-      imageBase64: btoa(binary),
-      mimeType: file.type || 'image/jpeg',
-    });
+    const mimeType = file.type || 'image/jpeg';
+    let raw: string;
+    try {
+      raw = await provider.describe({
+        prompt: DOCUMENT_PROMPT,
+        imageBase64: btoa(binary),
+        mimeType,
+      });
+    } catch (e) {
+      // A provider that can't read this format is a configuration mismatch,
+      // not a bad upload: name it so the user knows to switch provider.
+      if (e instanceof UnsupportedMediaError) {
+        await admin
+          .from('flowfinance_receipts')
+          .update({
+            status: 'failed',
+            error: e.message.slice(0, 500),
+            analyzed_at: new Date().toISOString(),
+          })
+          .eq('id', receipt.id);
+        return json({ error: 'unsupported_media', provider: e.provider, mimeType }, 415);
+      }
+      throw e;
+    }
 
     const extraction = parseDocumentResponse(raw);
     if (!extraction) return await fail('the image does not look like a receipt', 422);
@@ -329,8 +285,8 @@ Deno.serve(async (req) => {
         receipt_date: extraction.date,
         items: extraction.items,
         confidence: extraction.confidence,
-        provider: PROVIDER,
-        model: MODEL,
+        provider: provider.name,
+        model: provider.model,
         error: null,
         analyzed_at: new Date().toISOString(),
       })

@@ -5,21 +5,13 @@
  * screen shows. History is supplied by the client per request — the thread is
  * in-memory by design and nothing is persisted here.
  */
+// Relative rather than a `~shared/` alias: the alias only resolves when an
+// import map is uploaded alongside the function, and a deploy that drops it
+// fails at boot instead of at type-check. A relative path always resolves.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { getProvider } from '~shared/ai.ts';
-import { buildSnapshot } from '~shared/finance.ts';
-
-const cors = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
+import { getProvider, MissingApiKeyError } from '../_shared/ai.ts';
+import { buildSnapshot } from '../_shared/finance.ts';
+import { jsonResponse, preflight } from '../_shared/cors.ts';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 const MAX_QUESTION = 500;
@@ -54,7 +46,10 @@ function parseHistory(value: unknown): Turn[] {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method === 'OPTIONS') return preflight(req);
+
+  const json = (body: unknown, status = 200) => jsonResponse(req, body, status);
+
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const url = Deno.env.get('SUPABASE_URL');
@@ -89,9 +84,6 @@ Deno.serve(async (req) => {
     return json({ error: 'snapshot_failed' }, 500);
   }
 
-  // Use user's API keys from auth metadata if available, fallback to env secrets
-  const userApiKeys = user.user_metadata?.apiKeys;
-
   const history = parseHistory(body.history);
   const transcript = history.map((t) => `${t.role === 'user' ? 'Usuario' : 'Asistente'}: ${t.content}`).join('\n');
 
@@ -102,11 +94,18 @@ Deno.serve(async (req) => {
   ].join('\n');
 
   try {
-    const answer = await getProvider(userApiKeys).complete({ system: SYSTEM, prompt, temperature: 0.3 });
+    // The user's own key from Settings, falling back to the project secrets.
+    const provider = getProvider(user.user_metadata?.apiKeys);
+    const answer = await provider.complete({ system: SYSTEM, prompt, temperature: 0.3 });
     const text = answer.trim();
     if (!text) return json({ error: 'ai_failed' }, 502);
     return json({ answer: text });
   } catch (e) {
+    // Retrying cannot conjure a key — say so instead of "try again".
+    if (e instanceof MissingApiKeyError) {
+      console.error('no api key', e.provider);
+      return json({ error: 'no_api_key', provider: e.provider }, 400);
+    }
     console.error('model call failed', e);
     return json({ error: 'ai_failed' }, 502);
   }
