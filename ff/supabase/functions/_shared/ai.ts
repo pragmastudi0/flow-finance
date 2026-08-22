@@ -1,10 +1,10 @@
 /**
  * Provider-agnostic model access.
  *
- * `analyze-receipt` grew its own inline `callGemini` / `callGroq` pair for
- * vision. This is the same idea generalised to text-only calls and shared, so
- * adding a provider is one entry in `PROVIDERS` rather than an edit in every
- * function.
+ * Text and vision both go through here so adding a provider is one entry
+ * rather than an edit in every function. `analyze-receipt` used to carry its
+ * own inline `callGemini` / `callGroq` pair; it now shares this, which is how
+ * it picked up support for the key a user sets in Settings.
  *
  * The API keys are Deno env secrets and never leave the edge runtime. They
  * must not move to the client: Vite inlines anything `VITE_*` into the public
@@ -23,10 +23,43 @@ export interface TextRequest {
   temperature?: number;
 }
 
+export interface VisionRequest {
+  prompt: string;
+  imageBase64: string;
+  mimeType: string;
+  json?: boolean;
+  temperature?: number;
+}
+
 export interface CompletionProvider {
   readonly name: ProviderName;
   readonly model: string;
   complete(req: TextRequest): Promise<string>;
+  /** Throws `UnsupportedMediaError` for a media type the provider can't read. */
+  describe(req: VisionRequest): Promise<string>;
+}
+
+/**
+ * No key anywhere — neither the user's nor the project's.
+ *
+ * Distinct from a model failure because the fix is completely different:
+ * the user adds a key in Settings (or an operator sets the secret), rather
+ * than retrying. Collapsing it into a generic failure is what left nine of
+ * ten accounts staring at "try again shortly" with nothing to try.
+ */
+export class MissingApiKeyError extends Error {
+  constructor(readonly provider: ProviderName) {
+    super(`no API key configured for ${provider}`);
+    this.name = 'MissingApiKeyError';
+  }
+}
+
+/** The provider can read images but not this particular media type. */
+export class UnsupportedMediaError extends Error {
+  constructor(readonly provider: ProviderName, readonly mimeType: string) {
+    super(`${provider} cannot read ${mimeType}`);
+    this.name = 'UnsupportedMediaError';
+  }
 }
 
 const DEFAULT_MODELS: Record<ProviderName, string> = {
@@ -36,73 +69,114 @@ const DEFAULT_MODELS: Record<ProviderName, string> = {
   anthropic: 'claude-haiku-4-5-20251001',
 };
 
-function env(name: string): string {
-  const value = Deno.env.get(name);
-  if (!value) throw new Error(`${name} is not set`);
-  return value;
+const KEY_ENV: Record<ProviderName, string> = {
+  gemini: 'GEMINI_API_KEY',
+  groq: 'GROQ_API_KEY',
+  openai: 'OPENAI_API_KEY',
+  anthropic: 'ANTHROPIC_API_KEY',
+};
+
+/**
+ * The user's key wins; the project secret is the fallback.
+ *
+ * Blank strings count as absent: the Settings screen persists an empty field
+ * for every provider the user left untouched, so `''` here means "not set",
+ * not "set to nothing".
+ */
+function resolveKey(provider: ProviderName, userKey?: string): string {
+  const fromUser = userKey?.trim();
+  if (fromUser) return fromUser;
+  const fromEnv = Deno.env.get(KEY_ENV[provider])?.trim();
+  if (fromEnv) return fromEnv;
+  throw new MissingApiKeyError(provider);
 }
 
 function gemini(model: string, apiKey?: string): CompletionProvider {
+  const send = async (body: Record<string, unknown>) => {
+    const key = resolveKey('gemini', apiKey);
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        body: JSON.stringify(body),
+      },
+    );
+    if (!res.ok) throw new Error(`gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = await res.json();
+    return (
+      data?.candidates?.[0]?.content?.parts
+        ?.map((p: { text?: string }) => p.text ?? '')
+        .join('') ?? ''
+    );
+  };
+
+  const generationConfig = (json: boolean, temperature: number) => ({
+    temperature,
+    ...(json ? { responseMimeType: 'application/json' } : {}),
+  });
+
   return {
     name: 'gemini',
     model,
-    async complete({ system, prompt, json, temperature = 0.2 }) {
-      const key = apiKey || env('GEMINI_API_KEY');
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: system }] },
-            contents: [{ role: 'user', parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature,
-              ...(json ? { responseMimeType: 'application/json' } : {}),
-            },
-          }),
-        },
-      );
-      if (!res.ok) throw new Error(`Gemini ${res.status}: ${(await res.text()).slice(0, 300)}`);
-      const data = await res.json();
-      return (
-        data?.candidates?.[0]?.content?.parts
-          ?.map((p: { text?: string }) => p.text ?? '')
-          .join('') ?? ''
-      );
-    },
+    complete: ({ system, prompt, json, temperature = 0.2 }) =>
+      send({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: generationConfig(json === true, temperature),
+      }),
+    // Gemini reads PDFs inline alongside images, which is why it stays the
+    // default for receipt scanning.
+    describe: ({ prompt, imageBase64, mimeType, json = true, temperature = 0 }) =>
+      send({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: imageBase64 } }],
+          },
+        ],
+        generationConfig: generationConfig(json, temperature),
+      }),
   };
 }
 
 function anthropic(model: string, apiKey?: string): CompletionProvider {
+  const send = async (body: Record<string, unknown>) => {
+    const key = resolveKey('anthropic', apiKey);
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({ model, max_tokens: 4096, ...body }),
+    });
+    if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = await res.json();
+    return (
+      data?.content
+        ?.filter((b: { type?: string }) => b.type === 'text')
+        .map((b: { text?: string }) => b.text ?? '')
+        .join('') ?? ''
+    );
+  };
+
   return {
     name: 'anthropic',
     model,
-    async complete({ system, prompt, temperature = 0.2 }) {
-      const key = apiKey || env('ANTHROPIC_API_KEY');
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 4096,
-          temperature,
-          system,
-          messages: [{ role: 'user', content: prompt }],
-        }),
+    complete: ({ system, prompt, temperature = 0.2 }) =>
+      send({ temperature, system, messages: [{ role: 'user', content: prompt }] }),
+    describe: ({ prompt, imageBase64, mimeType, temperature = 0 }) => {
+      // PDFs go in a `document` block; images in an `image` block.
+      const block =
+        mimeType === 'application/pdf'
+          ? { type: 'document', source: { type: 'base64', media_type: mimeType, data: imageBase64 } }
+          : { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } };
+      return send({
+        temperature,
+        messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
       });
-      if (!res.ok) throw new Error(`anthropic ${res.status}: ${(await res.text()).slice(0, 300)}`);
-      const data = await res.json();
-      return (
-        data?.content
-          ?.filter((b: { type?: string }) => b.type === 'text')
-          .map((b: { text?: string }) => b.text ?? '')
-          .join('') ?? ''
-      );
     },
   };
 }
@@ -112,30 +186,53 @@ function openaiCompatible(
   name: 'groq' | 'openai',
   model: string,
   url: string,
-  keyName: string,
   apiKey?: string,
 ): CompletionProvider {
+  const send = async (messages: unknown[], json: boolean, temperature: number) => {
+    const key = resolveKey(name, apiKey);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({
+        model,
+        temperature,
+        ...(json ? { response_format: { type: 'json_object' } } : {}),
+        messages,
+      }),
+    });
+    if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? '';
+  };
+
   return {
     name,
     model,
-    async complete({ system, prompt, json, temperature = 0.2 }) {
-      const key = apiKey || env(keyName);
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model,
-          temperature,
-          ...(json ? { response_format: { type: 'json_object' } } : {}),
-          messages: [
-            { role: 'system', content: system },
-            { role: 'user', content: prompt },
-          ],
-        }),
-      });
-      if (!res.ok) throw new Error(`${name} ${res.status}: ${(await res.text()).slice(0, 300)}`);
-      const data = await res.json();
-      return data?.choices?.[0]?.message?.content ?? '';
+    complete: ({ system, prompt, json, temperature = 0.2 }) =>
+      send(
+        [
+          { role: 'system', content: system },
+          { role: 'user', content: prompt },
+        ],
+        json === true,
+        temperature,
+      ),
+    describe: ({ prompt, imageBase64, mimeType, json = true, temperature = 0 }) => {
+      // Neither chat-completions endpoint accepts a PDF as an image part.
+      if (mimeType === 'application/pdf') throw new UnsupportedMediaError(name, mimeType);
+      return send(
+        [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+            ],
+          },
+        ],
+        json,
+        temperature,
+      );
     },
   };
 }
@@ -151,22 +248,30 @@ export interface UserApiKeys {
   provider?: string;
 }
 
+const asProvider = (raw?: string): ProviderName | null => {
+  const name = raw?.trim().toLowerCase();
+  return name && PROVIDER_NAMES.includes(name as ProviderName) ? (name as ProviderName) : null;
+};
+
 /**
  * Picks the provider the user selected in Settings, falling back to the
  * `AI_PROVIDER` / `AI_MODEL` secrets, and finally to Gemini 2.5 Flash.
  */
 export function getProvider(apiKeys?: UserApiKeys): CompletionProvider {
-  const userChoice = apiKeys?.provider?.toLowerCase();
-  const envChoice = Deno.env.get('AI_PROVIDER')?.toLowerCase();
-  const raw = userChoice || envChoice || 'gemini';
-  const name: ProviderName = PROVIDER_NAMES.includes(raw as ProviderName) ? (raw as ProviderName) : 'gemini';
-  const model = Deno.env.get('AI_MODEL') ?? DEFAULT_MODELS[name];
+  const envProvider = asProvider(Deno.env.get('AI_PROVIDER'));
+  const name = asProvider(apiKeys?.provider) ?? envProvider ?? 'gemini';
+
+  // `AI_MODEL` names a model for the provider `AI_PROVIDER` selects. Applying
+  // it to a different provider sends, say, a Gemini model id to Anthropic and
+  // earns a 404 — so it only counts when the resolved provider is that one.
+  const envModel = Deno.env.get('AI_MODEL')?.trim();
+  const model = envModel && name === (envProvider ?? 'gemini') ? envModel : DEFAULT_MODELS[name];
 
   switch (name) {
     case 'groq':
-      return openaiCompatible('groq', model, 'https://api.groq.com/openai/v1/chat/completions', 'GROQ_API_KEY', apiKeys?.groq);
+      return openaiCompatible('groq', model, 'https://api.groq.com/openai/v1/chat/completions', apiKeys?.groq);
     case 'openai':
-      return openaiCompatible('openai', model, 'https://api.openai.com/v1/chat/completions', 'OPENAI_API_KEY', apiKeys?.openai);
+      return openaiCompatible('openai', model, 'https://api.openai.com/v1/chat/completions', apiKeys?.openai);
     case 'anthropic':
       return anthropic(model, apiKeys?.anthropic);
     default:

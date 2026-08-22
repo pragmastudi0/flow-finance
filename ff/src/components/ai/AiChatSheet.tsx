@@ -135,9 +135,13 @@ export function AiChatSheet({
               ? es
                 ? 'El asistente necesita Supabase configurado.'
                 : 'The assistant needs Supabase configured.'
-              : es
-                ? 'No pude responder. Probá de nuevo.'
-                : 'Could not answer. Please try again.'}
+              : error.code === 'no_api_key'
+                ? es
+                  ? 'Falta configurar una clave de IA en Configuración.'
+                  : 'No AI key configured — add one in Settings.'
+                : es
+                  ? 'No pude responder. Probá de nuevo.'
+                  : 'Could not answer. Please try again.'}
           </p>
         )}
 

@@ -5,27 +5,22 @@
  * from the caller's own rows — the browser never describes its own finances,
  * and the model key never leaves the edge runtime.
  */
+// Relative rather than a `~shared/` alias: the alias only resolves when an
+// import map is uploaded alongside the function, and a deploy that drops it
+// fails at boot instead of at type-check. A relative path always resolves.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
-import { extractJson, getProvider } from '~shared/ai.ts';
-import { buildSnapshot } from '~shared/finance.ts';
-import { parseReport, REPORT_SYSTEM_PROMPT } from '~shared/report.ts';
-
-const cors = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
-  'Access-Control-Allow-Headers': 'authorization, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
-
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
+import { extractJson, getProvider, MissingApiKeyError } from '../_shared/ai.ts';
+import { buildSnapshot } from '../_shared/finance.ts';
+import { parseReport, REPORT_SYSTEM_PROMPT } from '../_shared/report.ts';
+import { jsonResponse, preflight } from '../_shared/cors.ts';
 
 const MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method === 'OPTIONS') return preflight(req);
+
+  const json = (body: unknown, status = 200) => jsonResponse(req, body, status);
+
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   const url = Deno.env.get('SUPABASE_URL');
@@ -87,9 +82,8 @@ Deno.serve(async (req) => {
     return json({ error: 'no_data' }, 422);
   }
 
-  // Use user's API keys from auth metadata if available, fallback to env secrets
-  const userApiKeys = user.user_metadata?.apiKeys;
-  const provider = getProvider(userApiKeys);
+  // The user's own key from Settings, falling back to the project secrets.
+  const provider = getProvider(user.user_metadata?.apiKeys);
   let report;
   try {
     const raw = await provider.complete({
@@ -99,6 +93,12 @@ Deno.serve(async (req) => {
     });
     report = parseReport(extractJson(raw));
   } catch (e) {
+    // "No key configured" is not a transient model failure: retrying can
+    // never fix it, so the screen needs to say to add one in Settings.
+    if (e instanceof MissingApiKeyError) {
+      console.error('no api key', e.provider);
+      return json({ error: 'no_api_key', provider: e.provider }, 400);
+    }
     console.error('model call failed', e);
     return json({ error: 'ai_failed' }, 502);
   }

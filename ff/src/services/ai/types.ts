@@ -70,6 +70,8 @@ export interface ChatTurn {
 export type AiErrorCode =
   | 'unauthorized'
   | 'no_data'
+  /** No model key configured — the user has to add one in Settings. */
+  | 'no_api_key'
   | 'rate_limited'
   | 'ai_failed'
   | 'offline'
