@@ -3,7 +3,7 @@ import { animate, motion, useMotionValue, useTransform, type PanInfo } from 'fra
 import { Pencil, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
-import { CATEGORY_ICONS } from '@/domain/categories';
+import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { SPRING } from '@/lib/motion';
 import type { Transaction } from '@/types/models';
@@ -41,6 +41,7 @@ export const TransactionRow = forwardRef<HTMLLIElement, TransactionRowProps>(fun
   ref,
 ) {
   const { language } = useLanguage();
+  const { iconOf } = useCategoryVisuals();
   const categoryLabel = useCategoryLabel();
   const x = useMotionValue(0);
   /**
@@ -104,7 +105,7 @@ export const TransactionRow = forwardRef<HTMLLIElement, TransactionRowProps>(fun
   };
 
   const sign = tx.type === 'expense' ? '-' : '+';
-  const icon = CATEGORY_ICONS[tx.category] ?? '💰';
+  const icon = iconOf(tx.category);
 
   return (
     // `layout` and the hairline live out here, never on the dragged child: a

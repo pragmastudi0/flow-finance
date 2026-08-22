@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
-import { CATEGORY_ICONS } from '@/domain/categories';
+import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportTransactions } from '@/lib/exportReport';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ function getDateRange(period: Period): { start: string; end: string } {
 
 export default function Reports() {
   const { t, language } = useLanguage();
+  const { iconOf } = useCategoryVisuals();
   const categoryLabel = useCategoryLabel();
   const dateLocale = language === 'es' ? es : enUS;
   const [period, setPeriod] = useState<Period>('month');
@@ -188,7 +189,7 @@ export default function Reports() {
                   className="flex items-center gap-3 border-b border-hairline px-5 py-3 last:border-b-0"
                 >
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-muted text-[17px] leading-none">
-                    {CATEGORY_ICONS[tx.category] || '📄'}
+                    {iconOf(tx.category)}
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-medium leading-tight text-ink">

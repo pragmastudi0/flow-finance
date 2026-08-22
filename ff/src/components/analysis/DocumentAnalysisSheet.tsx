@@ -17,9 +17,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
+import { useLanguage } from '@/i18n/LanguageProvider';
+import { useCategoryOptions } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
-import { CATEGORY_ICONS, categoriesFor } from '@/domain/categories';
+import { categoriesFor } from '@/domain/categories';
 import type { AnalyzedDocument } from '@/lib/receipts';
 
 interface Props {
@@ -43,7 +44,7 @@ export function DocumentAnalysisSheet({
   open, onOpenChange, extraction, previewUrl, onConfirm, loading,
 }: Props) {
   const { t, language } = useLanguage();
-  const categoryLabel = useCategoryLabel();
+  const { options: categoryOptions } = useCategoryOptions('expense');
 
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('other');
@@ -152,11 +153,11 @@ export function DocumentAnalysisSheet({
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {categoriesFor('expense').map(cat => (
-                    <SelectItem key={cat} value={cat}>
+                  {categoryOptions.map(cat => (
+                    <SelectItem key={cat.value} value={cat.value}>
                       <span className="flex items-center gap-2">
-                        <span>{CATEGORY_ICONS[cat]}</span>
-                        <span>{categoryLabel(cat)}</span>
+                        <span>{cat.icon}</span>
+                        <span>{cat.label}</span>
                       </span>
                     </SelectItem>
                   ))}

@@ -201,13 +201,24 @@ export function toTransactionDraft(
   extraction: ReceiptExtraction,
   {
     learnings = [],
+    customCategories = [],
     usdRate = null,
     today = new Date(),
-  }: { learnings?: Learning[]; usdRate?: number | null; today?: Date } = {},
+  }: {
+    learnings?: Learning[];
+    customCategories?: string[];
+    usdRate?: number | null;
+    today?: Date;
+  } = {},
 ): ReceiptDraft | null {
   if (extraction.currency === 'USD' && !usdRate) return null;
 
-  const category = guessCategory(categorizationText(extraction), 'expense', learnings);
+  const category = guessCategory(
+    categorizationText(extraction),
+    'expense',
+    learnings,
+    customCategories,
+  );
 
   return {
     amount: extraction.total,

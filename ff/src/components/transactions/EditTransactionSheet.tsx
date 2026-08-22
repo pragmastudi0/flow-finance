@@ -15,8 +15,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
-import { CATEGORY_ICONS, categoriesFor } from '@/domain/categories';
+import { useLanguage } from '@/i18n/LanguageProvider';
+import { useCategoryOptions } from '@/hooks/useCategoryOptions';
 import type { Transaction } from '@/types/models';
 
 interface Props {
@@ -32,7 +32,6 @@ export function EditTransactionSheet({
   open, onOpenChange, transaction, onSave, onDelete, loading,
 }: Props) {
   const { t, language } = useLanguage();
-  const categoryLabel = useCategoryLabel();
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState(0);
@@ -40,6 +39,8 @@ export function EditTransactionSheet({
   const [category, setCategory] = useState('other');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
+
+  const { options: categoryOptions } = useCategoryOptions(type);
 
   useEffect(() => {
     if (transaction) {
@@ -121,11 +122,11 @@ export function EditTransactionSheet({
             <Select value={category} onValueChange={setCategory}>
               <SelectTrigger id="edit-cat"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {categoriesFor(type).map((cat) => (
-                  <SelectItem key={cat} value={cat}>
+                {categoryOptions.map((cat) => (
+                  <SelectItem key={cat.value} value={cat.value}>
                     <span className="flex items-center gap-2">
-                      <span>{CATEGORY_ICONS[cat]}</span>
-                      <span>{categoryLabel(cat)}</span>
+                      <span>{cat.icon}</span>
+                      <span>{cat.label}</span>
                     </span>
                   </SelectItem>
                 ))}

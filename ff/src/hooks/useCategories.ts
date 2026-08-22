@@ -1,8 +1,47 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
 import { demoCategories, demoLearnings } from '@/lib/demo.ts';
 import { toCategory, toCategoryLearning } from '@/lib/mappers.ts';
-import type { TxType } from '@/domain/categories.ts';
+import { fold, type TxType } from '@/domain/categories.ts';
+
+export type CategoryErrorCode =
+  | 'duplicate'
+  | 'tooLong'
+  | 'auth'
+  | 'offline'
+  | 'unknown';
+
+export class CategoryError extends Error {
+  constructor(readonly code: CategoryErrorCode, message?: string) {
+    super(message ?? code);
+    this.name = 'CategoryError';
+  }
+}
+
+/**
+ * Classify by SQLSTATE, never by message text: the constraints in 0001_init
+ * are what fail here, and their codes are stable while the wording that comes
+ * back is not (it is localized by the server and names the index, not the
+ * problem). PostgREST leaves `code` empty when the request never reached the
+ * database, which is the offline case.
+ */
+export function toCategoryError(error: PostgrestError): CategoryError {
+  switch (error.code) {
+    case '23505': // categories_unique_name
+      return new CategoryError('duplicate', error.message);
+    case '23514': // name length check
+      return new CategoryError('tooLong', error.message);
+    case '42501': // row level security
+    case 'PGRST301': // expired JWT
+      return new CategoryError('auth', error.message);
+    case '':
+    case undefined:
+      return new CategoryError('offline', error.message);
+    default:
+      return new CategoryError('unknown', error.message);
+  }
+}
 
 export function useUserCategories(type?: TxType) {
   return useQuery({
@@ -16,7 +55,7 @@ export function useUserCategories(type?: TxType) {
       let query = supabase.from('flowfinance_categories').select('*');
       if (type) query = query.eq('type', type);
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) throw toCategoryError(error);
       return (data ?? []).map(toCategory);
     },
   });
@@ -25,12 +64,34 @@ export function useUserCategories(type?: TxType) {
 export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
+    // React Query pauses mutations while the browser reports itself offline,
+    // which here means a spinner that never resolves and a write that may fire
+    // much later, unannounced. Attempt it instead: the failure is immediate and
+    // becomes a message the user can act on.
+    networkMode: 'always',
     mutationFn: async (cat: { name: string; icon: string; color: string; type: TxType }) => {
-      if (isDemoMode()) return demoCategories.insert(cat);
-      const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) throw new Error('No hay sesión activa');
-      const { data, error } = await supabase.from('flowfinance_categories').insert({ ...cat, user_id: auth.user.id }).select('id').single();
-      if (error) throw error;
+      if (isDemoMode()) {
+        // The demo store has no constraints, so it used to accept duplicates
+        // that production rejects — the one mode where the bug was invisible.
+        const taken = demoCategories
+          .getAll()
+          .some((c) => c.type === cat.type && fold(c.name ?? '') === fold(cat.name));
+        if (taken) throw new CategoryError('duplicate');
+        return demoCategories.insert(cat);
+      }
+      // `getSession` reads the stored session; `getUser` would spend a network
+      // round trip on it, and with no connection that call retries internally
+      // and leaves the button spinning instead of reporting the outage. RLS is
+      // what actually enforces ownership, either way.
+      const { data: auth } = await supabase.auth.getSession();
+      const userId = auth.session?.user.id;
+      if (!userId) throw new CategoryError('auth');
+      const { data, error } = await supabase
+        .from('flowfinance_categories')
+        .insert({ ...cat, user_id: userId })
+        .select('id')
+        .single();
+      if (error) throw toCategoryError(error);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user-categories'] }),
@@ -40,10 +101,11 @@ export function useCreateCategory() {
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
+    networkMode: 'always',
     mutationFn: async (id: string) => {
       if (isDemoMode()) { demoCategories.remove(id); return; }
       const { error } = await supabase.from('flowfinance_categories').delete().eq('id', id);
-      if (error) throw error;
+      if (error) throw toCategoryError(error);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user-categories'] }),
   });
@@ -73,7 +135,7 @@ export function useSaveLearning() {
     mutationFn: async (l: { keyword: string; category: string; type: TxType }) => {
       if (isDemoMode()) { demoLearnings.insert(l); return; }
       const { data: auth } = await supabase.auth.getUser();
-      if (!auth.user) throw new Error('No hay sesión activa');
+      if (!auth.user) throw new CategoryError('auth');
       const { error } = await supabase.from('flowfinance_category_learnings').upsert(
         { ...l, user_id: auth.user.id },
         { onConflict: 'user_id, type, lower(keyword)' },

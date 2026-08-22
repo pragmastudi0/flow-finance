@@ -178,13 +178,24 @@ export function toTransactionDraft(
   extraction: DocumentExtraction,
   {
     learnings = [],
+    customCategories = [],
     usdRate = null,
     today = new Date(),
-  }: { learnings?: Learning[]; usdRate?: number | null; today?: Date } = {},
+  }: {
+    learnings?: Learning[];
+    customCategories?: string[];
+    usdRate?: number | null;
+    today?: Date;
+  } = {},
 ): DocumentDraft | null {
   if (extraction.currency === 'USD' && !usdRate) return null;
 
-  const category = guessCategory(categorizationText(extraction), 'expense', learnings);
+  const category = guessCategory(
+    categorizationText(extraction),
+    'expense',
+    learnings,
+    customCategories,
+  );
 
   const itemsSummary = summarizeItems(extraction.items);
   const description = extraction.merchant

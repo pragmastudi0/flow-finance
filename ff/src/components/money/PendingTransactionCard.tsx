@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
-import { CATEGORY_ICONS } from '@/domain/categories';
+import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { SPRING } from '@/lib/motion';
 import { Button } from '@/components/ui/button';
@@ -28,7 +28,8 @@ export function PendingTransactionCard({
 }: PendingTransactionCardProps) {
   const { t, language } = useLanguage();
   const categoryLabel = useCategoryLabel();
-  const icon = CATEGORY_ICONS[parsed.category] ?? '💰';
+  const { iconOf } = useCategoryVisuals();
+  const icon = iconOf(parsed.category);
   const sign = parsed.type === 'expense' ? '-' : '+';
 
   return (
