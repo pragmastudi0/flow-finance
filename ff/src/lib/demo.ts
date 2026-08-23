@@ -118,6 +118,8 @@ export const demoCategories = {
 export const demoLearnings = {
   getAll: () => store<any>(`${currentNS()}:learnings`).getAll(),
   insert: (item: any) => store<any>(`${currentNS()}:learnings`).insert(item),
+  update: (id: string, data: any) => store<any>(`${currentNS()}:learnings`).update(id, data),
+  remove: (id: string) => store<any>(`${currentNS()}:learnings`).remove(id),
 };
 
 export function getDemoUser() {

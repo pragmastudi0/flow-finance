@@ -92,6 +92,34 @@ export function useDeleteTransaction() {
   });
 }
 
+/**
+ * Move a batch of transactions to one category in a single round trip — what
+ * the bulk recategorization sheet applies, and what undo replays per group.
+ */
+export function useBulkUpdateCategory() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    // Same reasoning as the category mutations: attempt the write and report
+    // the outage, rather than letting React Query park it out of sight.
+    networkMode: 'always',
+    mutationFn: async ({ ids, category }: { ids: string[]; category: string }) => {
+      if (ids.length === 0) return;
+      if (isDemoMode()) {
+        for (const id of ids) demoTransactions.update(id, { category });
+        return;
+      }
+      const { error } = await supabase
+        .from('flowfinance_transactions')
+        .update({ category })
+        .in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+    },
+  });
+}
+
 export function useUpdateTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
