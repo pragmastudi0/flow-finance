@@ -25,6 +25,8 @@ import { FloatingActionButton } from '@/components/money/FloatingActionButton';
 import { BottomSheetAddExpense } from '@/components/money/BottomSheetAddExpense';
 import { DocumentAnalysisSheet } from '@/components/analysis/DocumentAnalysisSheet';
 import { EditTransactionSheet } from '@/components/transactions/EditTransactionSheet';
+import { BulkRecategorizeSheet } from '@/components/transactions/BulkRecategorizeSheet';
+import { findSimilarTransactions, suggestKeyword, type SimilarMatch } from '@/domain/similar';
 
 export default function Home() {
   const { t, language } = useLanguage();
@@ -39,6 +41,9 @@ export default function Home() {
   const [extraction, setExtraction] = useState<AnalyzedDocument | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [bulk, setBulk] = useState<
+    { category: string; matches: SimilarMatch[]; keyword: string | null } | null
+  >(null);
 
   const { data: learnings } = useCategoryLearnings(mode);
   const customCategoryNames = useCustomCategoryNames(mode);
@@ -100,6 +105,22 @@ export default function Home() {
       setPending(null);
       setAddOpen(false);
     }
+  };
+
+  /**
+   * After a category change, look for the transactions that look like the one
+   * just moved. Everything needed is already in memory — `useTransactions()`
+   * loads the whole history — so this costs no extra query.
+   */
+  const offerSimilar = (original: Transaction, data: Partial<Transaction>) => {
+    const category = data.category;
+    if (!category || category === original.category) return;
+
+    const moved = { ...original, ...data };
+    const matches = findSimilarTransactions(moved, transactions ?? [], category);
+    if (matches.length === 0) return;
+
+    setBulk({ category, matches, keyword: suggestKeyword(moved, matches) });
   };
 
   const handleUpload = async (file: File) => {
@@ -217,10 +238,32 @@ export default function Home() {
         onOpenChange={(open) => { if (!open) setEditing(null); }}
         transaction={editing}
         onSave={async (data) => {
-          if (editing && (await actions.save(editing, data))) setEditing(null);
+          if (!editing) return;
+          const original = editing;
+          if (!(await actions.save(original, data))) return;
+          setEditing(null);
+          offerSimilar(original, data);
         }}
         onDelete={actions.remove}
         loading={actions.saving}
+      />
+
+      <BulkRecategorizeSheet
+        open={!!bulk}
+        onOpenChange={(open) => { if (!open) setBulk(null); }}
+        toCategory={bulk?.category ?? ''}
+        matches={bulk?.matches ?? []}
+        keyword={bulk?.keyword ?? null}
+        saving={actions.recategorizing}
+        onConfirm={async (ids, learnKeyword) => {
+          if (!bulk) return;
+          const selected = bulk.matches
+            .map((m) => m.transaction)
+            .filter((tx) => ids.includes(tx.id));
+          if (await actions.recategorize(selected, bulk.category, learnKeyword)) {
+            setBulk(null);
+          }
+        }}
       />
     </>
   );
