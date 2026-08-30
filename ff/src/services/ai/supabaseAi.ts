@@ -1,10 +1,11 @@
 import { FunctionsHttpError } from '@supabase/supabase-js';
 import { supabase, isDemoMode } from '@/lib/supabase.ts';
+import { parseVerdicts, type AiMatchQuestion, type AiMatchVerdict } from '@/domain/reconciliation/aiVerdict.ts';
 import type { AiProvider } from './provider.ts';
 import { AiError, type AiErrorCode, type AiReportResult, type ChatTurn } from './types.ts';
 
 /**
- * Talks to the `ai-insights` / `ai-chat` edge functions.
+ * Talks to the `ai-insights` / `ai-chat` / `reconcile-match` edge functions.
  *
  * The model key lives there as a Deno secret and is never shipped to the
  * browser — Vite inlines every `VITE_*` value into the public bundle, so a
@@ -83,5 +84,20 @@ export const supabaseAi: AiProvider = {
     const answer = (body as { answer?: unknown }).answer;
     if (typeof answer !== 'string' || !answer) throw new AiError('ai_failed', 'empty answer');
     return answer;
+  },
+
+  async judgeMatches(pairs: AiMatchQuestion[]): Promise<AiMatchVerdict[]> {
+    if (pairs.length === 0) return [];
+    if (isDemoMode()) throw new AiError('unavailable', 'demo mode');
+
+    const { data, error } = await supabase.functions.invoke('reconcile-match', {
+      body: { pairs },
+    });
+    const body = await unwrap(data, error);
+
+    // A verdict for a pair that was not asked about cannot be applied, so the
+    // response is filtered down to the ids that went out.
+    const asked = new Set(pairs.map((p) => p.id));
+    return parseVerdicts(body).filter((v) => asked.has(v.id));
   },
 };

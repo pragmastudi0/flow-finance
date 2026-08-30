@@ -122,6 +122,22 @@ export const demoLearnings = {
   remove: (id: string) => store<any>(`${currentNS()}:learnings`).remove(id),
 };
 
+/** Imported statements and their movements, so demo mode can reconcile too. */
+export const demoStatementImports = {
+  getAll: () => store<any>(`${currentNS()}:statement_imports`).getAll(),
+  getById: (id: string) => store<any>(`${currentNS()}:statement_imports`).getById(id),
+  insert: (item: any) => store<any>(`${currentNS()}:statement_imports`).insert(item),
+  update: (id: string, data: any) => store<any>(`${currentNS()}:statement_imports`).update(id, data),
+};
+
+export const demoBankTransactions = {
+  getAll: () => store<any>(`${currentNS()}:bank_transactions`).getAll(),
+  getById: (id: string) => store<any>(`${currentNS()}:bank_transactions`).getById(id),
+  insert: (item: any) => store<any>(`${currentNS()}:bank_transactions`).insert(item),
+  update: (id: string, data: any) => store<any>(`${currentNS()}:bank_transactions`).update(id, data),
+  remove: (id: string) => store<any>(`${currentNS()}:bank_transactions`).remove(id),
+};
+
 export function getDemoUser() {
   const email = getSessionEmail();
   if (!email) return null;

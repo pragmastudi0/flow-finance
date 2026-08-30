@@ -7,4 +7,5 @@ export const ROUTES = {
   categories: '/Categories',
   fixedExpenses: '/FixedExpenses',
   exchangeRate: '/ExchangeRateConfig',
+  reconciliation: '/Reconciliation',
 } as const;

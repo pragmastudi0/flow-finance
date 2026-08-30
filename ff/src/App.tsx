@@ -16,6 +16,7 @@ import Settings from './pages/Settings.tsx';
 import CategoriesPage from './pages/CategoriesPage.tsx';
 import FixedExpenses from './pages/FixedExpenses.tsx';
 import ExchangeRate from './pages/ExchangeRate.tsx';
+import Reconciliation from './pages/Reconciliation.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -149,6 +150,16 @@ function AppRoutes() {
           <AuthGuard>
             <Layout>
               <ExchangeRate />
+            </Layout>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path={ROUTES.reconciliation}
+        element={
+          <AuthGuard>
+            <Layout>
+              <Reconciliation />
             </Layout>
           </AuthGuard>
         }

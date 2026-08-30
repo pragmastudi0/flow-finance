@@ -35,6 +35,7 @@ supabase db push
 # 3. Edge function + secrets
 supabase secrets set AI_PROVIDER=gemini GEMINI_API_KEY=...
 supabase functions deploy analyze-receipt
+supabase functions deploy reconcile-match
 
 # 4. Build
 npm run build     # → dist/, subí a tu hosting
@@ -51,7 +52,7 @@ VITE_SUPABASE_ANON_KEY=tu-anon-key
 Verificación:
 
 ```bash
-npm test           # 39 tests
+npm test           # 152 tests
 npm run build
 ```
 
