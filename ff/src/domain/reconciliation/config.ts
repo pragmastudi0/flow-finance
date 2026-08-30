@@ -48,6 +48,23 @@ export interface ReconciliationConfig {
   /** Score at or above which a pair is worth showing for review. */
   reviewThreshold: number;
 
+  /**
+   * The second route to a suggestion: a pair whose amounts and dates line up
+   * so tightly that the numbers are evidence on their own.
+   *
+   * This is what lets `nafta $40.000 13/08` reach `Est servicio alaminos
+   * $40.000 13/08`. Their descriptions share nothing, so the description-led
+   * route scores it 50 and the candidate gate drops it before that — the
+   * engine had no way to propose it at all.
+   */
+  anchors: {
+    enabled: boolean;
+    maxDayDistance: number;
+    maxAmountPct: number;
+    /** Ceiling: a numeric coincidence never reaches high confidence alone. */
+    maxScore: number;
+  };
+
   /** Candidate generation gates — cheap filters run before any scoring. */
   candidates: {
     maxDayDistance: number;
@@ -103,6 +120,13 @@ export const DEFAULT_RECONCILIATION_CONFIG: ReconciliationConfig = {
   highConfidence: 90,
   reviewThreshold: 70,
 
+  anchors: {
+    enabled: true,
+    maxDayDistance: 1,
+    maxAmountPct: 0.01,
+    maxScore: 89,
+  },
+
   candidates: {
     maxDayDistance: 5,
     maxAmountPct: 0.5,
@@ -133,6 +157,7 @@ export function resolveConfig(
     ...base,
     ...overrides,
     weights: { ...base.weights, ...overrides.weights },
+    anchors: { ...base.anchors, ...overrides.anchors },
     candidates: { ...base.candidates, ...overrides.candidates },
     ai: { ...base.ai, ...overrides.ai },
     dateTiers: overrides.dateTiers ?? base.dateTiers,

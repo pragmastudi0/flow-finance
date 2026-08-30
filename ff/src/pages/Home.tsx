@@ -23,6 +23,7 @@ import { MoneyHeader, type TxFilter } from '@/components/money/MoneyHeader';
 import { TransactionList } from '@/components/money/TransactionList';
 import { FloatingActionButton } from '@/components/money/FloatingActionButton';
 import { BottomSheetAddExpense } from '@/components/money/BottomSheetAddExpense';
+import type { PaymentMethod } from '@/types/models';
 import { DocumentAnalysisSheet } from '@/components/analysis/DocumentAnalysisSheet';
 import { EditTransactionSheet } from '@/components/transactions/EditTransactionSheet';
 import { BulkRecategorizeSheet } from '@/components/transactions/BulkRecategorizeSheet';
@@ -99,9 +100,9 @@ export default function Home() {
     return false;
   };
 
-  const handleConfirmPending = async () => {
+  const handleConfirmPending = async (paymentMethod: PaymentMethod | null) => {
     if (!pending) return;
-    if (await actions.create(pending)) {
+    if (await actions.create(pending, paymentMethod)) {
       setPending(null);
       setAddOpen(false);
     }

@@ -1,7 +1,11 @@
 import type { Currency } from '../domain/parser.ts';
 import type { TxType } from '../domain/categories.ts';
+import type { PaymentMethod } from '../domain/reconciliation/types.ts';
 
-export type { Currency, TxType };
+export type { Currency, TxType, PaymentMethod };
+
+/** The order the pickers show them in. */
+export const PAYMENT_METHODS: PaymentMethod[] = ['cash', 'transfer', 'debit', 'credit', 'other'];
 
 export interface Transaction {
   id: string;
@@ -13,6 +17,8 @@ export interface Transaction {
   category: string;
   description: string;
   occurredOn: string;
+  /** Null when nobody said — every row that predates the column. */
+  paymentMethod: PaymentMethod | null;
   rawInput: string | null;
   calculation: string | null;
   createdAt: string;

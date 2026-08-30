@@ -9,7 +9,7 @@
  * never costs a call.
  *
  * The validator here is the client-side mirror of
- * `supabase/functions/_shared/reconcile.ts`. Edge functions run on Deno and
+ * `supabase/functions/reconcile-match/index.ts`. Edge functions run on Deno and
  * cannot import from the Vite tree; change one, change the other.
  */
 import type { ReconciliationConfig } from './config.ts';
@@ -91,9 +91,15 @@ export const pairId = (suggestion: MatchSuggestion) =>
   `${suggestion.movement.id}:${suggestion.expense.id}`;
 
 /**
- * The pairs worth a model call: in the review band, and uncertain *because
- * of the text*. A pair scoring 76 purely because the amounts are far apart
- * learns nothing from a language model, so it is left alone.
+ * The pairs worth a model call.
+ *
+ * Two kinds qualify:
+ *  - review-band pairs that are uncertain *because of the text* — a pair
+ *    scoring 76 purely because the amounts are far apart learns nothing from
+ *    a language model, so it is left alone;
+ *  - every amount anchor, which is the case the model is actually good at:
+ *    `nafta` and `Est servicio alaminos` share no characters at all, and only
+ *    knowing what a service station sells connects them.
  */
 export function selectForAi(
   suggestions: readonly MatchSuggestion[],
@@ -104,9 +110,10 @@ export function selectForAi(
   return suggestions
     .filter(
       (s) =>
-        s.score.total >= config.ai.minScore &&
-        s.score.total < config.ai.maxScore &&
-        s.score.description < config.ai.maxDescriptionScore,
+        s.source === 'amount-anchor' ||
+        (s.score.total >= config.ai.minScore &&
+          s.score.total < config.ai.maxScore &&
+          s.score.description < config.ai.maxDescriptionScore),
     )
     .sort((a, b) => b.score.total - a.score.total)
     .slice(0, config.ai.maxPairs)

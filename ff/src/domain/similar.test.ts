@@ -15,6 +15,7 @@ function tx(over: Partial<Transaction> = {}): Transaction {
     category: 'other',
     description: '',
     occurredOn: '2026-08-01',
+    paymentMethod: null,
     rawInput: null,
     calculation: null,
     createdAt: '2026-08-01T00:00:00.000Z',

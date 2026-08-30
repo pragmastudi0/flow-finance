@@ -52,7 +52,7 @@ VITE_SUPABASE_ANON_KEY=tu-anon-key
 Verificación:
 
 ```bash
-npm test           # 152 tests
+npm test           # 168 tests
 npm run build
 ```
 

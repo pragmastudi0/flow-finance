@@ -9,12 +9,22 @@
  * modes — in particular, that a model call which cannot happen (no key, over
  * quota, demo mode) degrades to the deterministic result instead of failing
  * the import.
+ *
+ * There are two ways in and they share everything after persistence:
+ * `importStatement` reads a new PDF, `openImport` reopens one already stored.
+ * That is what makes leaving the screen safe — the statement is in the
+ * database, not in this component's state.
  */
 import { useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { extractPdfText, fileHash, PdfTextError } from '@/lib/pdfText.ts';
-import { parseStatementText, checkAgainstSubtotal, type ParsedStatement } from '@/domain/reconciliation/statement.ts';
+import {
+  checkAgainstSubtotal,
+  parseStatementText,
+  type ParsedStatement,
+  type UnreadLine,
+} from '@/domain/reconciliation/statement.ts';
 import { reconcile } from '@/domain/reconciliation/matching.ts';
 import { applyVerdicts, selectForAi } from '@/domain/reconciliation/aiVerdict.ts';
 import { DEFAULT_RECONCILIATION_CONFIG } from '@/domain/reconciliation/config.ts';
@@ -24,17 +34,29 @@ import { AiError } from '@/services/ai/types.ts';
 import {
   confirmMatch,
   createExpenseFromMovement,
+  findImport,
+  ignoreMovement,
+  loadConfirmedMatches,
   loadExpensesInRange,
+  loadMovements,
   loadReconciledTransactionIds,
   rejectMatch,
-  ignoreMovement,
   saveStatementImport,
+  undoMatch,
   updateExpenseAmount,
-  type ImportOutcome,
+  type ConfirmedMatch,
 } from '@/services/reconciliation.ts';
 import type { Transaction } from '@/types/models.ts';
 
-export type ImportStage = 'idle' | 'reading' | 'parsing' | 'saving' | 'matching' | 'ai' | 'done' | 'error';
+export type ImportStage =
+  | 'idle'
+  | 'reading'
+  | 'parsing'
+  | 'saving'
+  | 'matching'
+  | 'ai'
+  | 'done'
+  | 'error';
 
 export type ImportErrorCode =
   | 'encrypted'
@@ -44,17 +66,38 @@ export type ImportErrorCode =
   | 'auth'
   | 'unknown';
 
+/**
+ * Everything the screen needs to say about the statement itself.
+ *
+ * Deliberately smaller than `ParsedStatement`: it is persisted into the
+ * import's `stats` column, so reopening a statement rebuilds it from the
+ * database rather than from a PDF the user would have to upload again.
+ */
+export interface StatementMeta {
+  cardLast4: string | null;
+  closingDate: string | null;
+  needsReview: UnreadLine[];
+  subtotalCheck: ReturnType<typeof checkAgainstSubtotal>;
+}
+
 export interface ReconciliationView {
   importId: string;
   fileName: string;
-  statement: ParsedStatement;
-  outcome: ImportOutcome;
+  meta: StatementMeta;
+  movementCount: number;
+  /** True when this exact file had already been imported. */
+  alreadyImported: boolean;
+  /** Movements the fingerprint index recognised from an earlier statement. */
+  duplicates: number;
   matches: MatchSuggestion[];
   review: MatchSuggestion[];
+  /** Proposed on the amount and the date alone. */
+  recommended: MatchSuggestion[];
   unmatchedMovements: BankMovement[];
   unmatchedExpenses: AppExpense[];
   informational: BankMovement[];
-  subtotalCheck: ReturnType<typeof checkAgainstSubtotal>;
+  /** Already accepted, on this import, in any past session. */
+  confirmed: ConfirmedMatch[];
   /** Why the model was not consulted, when it was not. Null when it was. */
   aiSkipped: string | null;
   aiConsulted: number;
@@ -69,6 +112,7 @@ function toAppExpense(tx: Transaction, reconciledIds: Set<string>): AppExpense {
     amount: tx.amount,
     currency: tx.currency,
     category: tx.category,
+    paymentMethod: tx.paymentMethod,
     reconciledMovementId: reconciledIds.has(tx.id) ? 'reconciled' : null,
   };
 }
@@ -86,6 +130,27 @@ function dateWindow(movements: BankMovement[]): { from: string; to: string } | n
   return { from: shift(days[0], -padding), to: shift(days[days.length - 1], padding) };
 }
 
+const metaFromStatement = (statement: ParsedStatement): StatementMeta => ({
+  cardLast4: statement.cardLast4,
+  closingDate: statement.closingDate,
+  needsReview: statement.needsReview,
+  subtotalCheck: checkAgainstSubtotal(statement),
+});
+
+/** The same meta, read back off the import row's `stats`. */
+function metaFromStats(
+  cardLast4: string | null,
+  closingDate: string | null,
+  stats: Record<string, unknown>,
+): StatementMeta {
+  return {
+    cardLast4,
+    closingDate,
+    needsReview: Array.isArray(stats.needsReview) ? (stats.needsReview as UnreadLine[]) : [],
+    subtotalCheck: (stats.subtotalCheck ?? null) as StatementMeta['subtotalCheck'],
+  };
+}
+
 export function useReconciliation() {
   const queryClient = useQueryClient();
   const [stage, setStage] = useState<ImportStage>('idle');
@@ -98,44 +163,37 @@ export function useReconciliation() {
     setView(null);
   }, []);
 
-  const importStatement = useCallback(async (file: File) => {
-    setError(null);
-    setView(null);
-
-    try {
-      setStage('reading');
-      const [hash, text] = await Promise.all([fileHash(file), extractPdfText(file)]);
-
-      setStage('parsing');
-      const statement = parseStatementText(text);
-      if (statement.movements.length === 0) {
-        setStage('error');
-        setError('no_movements');
-        return;
-      }
-
-      setStage('saving');
-      const outcome = await saveStatementImport(file.name, hash, statement);
-
+  /**
+   * Everything after persistence, shared by both entry points.
+   *
+   * `useAi` is off when re-running after an undo: the verdicts have not
+   * changed and a second call would spend the user's daily quota to learn
+   * nothing.
+   */
+  const runMatching = useCallback(
+    async (
+      base: Pick<ReconciliationView, 'importId' | 'fileName' | 'meta' | 'alreadyImported' | 'duplicates'>,
+      movements: BankMovement[],
+      { useAi = true }: { useAi?: boolean } = {},
+    ) => {
       setStage('matching');
+
       // Anything the user already answered is out of the running: a confirmed
       // movement keeps its expense, a rejected one is not offered again.
-      const open = outcome.movements.filter(
-        (m) => m.status === 'unmatched' || m.status === 'suggested',
-      );
+      const open = movements.filter((m) => m.status === 'unmatched' || m.status === 'suggested');
       const reconciledIds = await loadReconciledTransactionIds();
 
-      const window = dateWindow(outcome.movements);
+      const window = dateWindow(movements);
       const transactions = window ? await loadExpensesInRange(window.from, window.to) : [];
       const expenses = transactions.map((t) => toAppExpense(t, reconciledIds));
 
       const result = reconcile(open, expenses);
+      const confirmed = await loadConfirmedMatches(base.importId);
 
-      // Only the pairs the rules could not settle, and only because of their
-      // text, ever reach the model.
-      const questions = selectForAi(result.review);
-      let matches = result.matches;
-      let review = result.review;
+      // Only the pairs the rules could not settle — the review band's
+      // text-ambiguous ones, and every amount anchor — ever reach the model.
+      const questions = useAi ? selectForAi([...result.review, ...result.recommended]) : [];
+      let { matches, review, recommended } = result;
       let aiSkipped: string | null = questions.length === 0 ? 'no_ambiguity' : null;
       let aiConsulted = 0;
 
@@ -144,9 +202,19 @@ export function useReconciliation() {
         try {
           const verdicts = await ai.judgeMatches(questions);
           aiConsulted = verdicts.length;
-          const applied = applyVerdicts([...result.matches, ...result.review], verdicts);
-          matches = applied.suggestions.filter((s) => s.confidence === 'high');
-          review = applied.suggestions.filter((s) => s.confidence === 'review');
+          const applied = applyVerdicts(
+            [...result.matches, ...result.review, ...result.recommended],
+            verdicts,
+          );
+          // A confirmed anchor becomes `ai-confirmed`, which is what moves it
+          // out of Recommended and into the group it belongs in.
+          matches = applied.suggestions.filter(
+            (s) => s.source !== 'amount-anchor' && s.confidence === 'high',
+          );
+          review = applied.suggestions.filter(
+            (s) => s.source !== 'amount-anchor' && s.confidence === 'review',
+          );
+          recommended = applied.suggestions.filter((s) => s.source === 'amount-anchor');
         } catch (e) {
           // The deterministic result is complete on its own; a model that is
           // unavailable must not cost the user their import.
@@ -155,31 +223,106 @@ export function useReconciliation() {
       }
 
       setView({
-        importId: outcome.importId,
-        fileName: file.name,
-        statement,
-        outcome,
+        ...base,
+        movementCount: movements.length,
         matches,
         review,
+        recommended,
         unmatchedMovements: result.unmatchedMovements,
         unmatchedExpenses: result.unmatchedExpenses,
         informational: result.informational,
-        subtotalCheck: checkAgainstSubtotal(statement),
+        confirmed,
         aiSkipped,
         aiConsulted,
       });
       setStage('done');
-    } catch (e) {
-      setStage('error');
-      if (e instanceof PdfTextError) {
-        setError(e.code === 'encrypted' ? 'encrypted' : e.code === 'no_text' ? 'scanned' : 'unreadable');
-        return;
+    },
+    [],
+  );
+
+  const importStatement = useCallback(
+    async (file: File) => {
+      setError(null);
+      setView(null);
+
+      try {
+        setStage('reading');
+        const [hash, text] = await Promise.all([fileHash(file), extractPdfText(file)]);
+
+        setStage('parsing');
+        const statement = parseStatementText(text);
+        if (statement.movements.length === 0) {
+          setStage('error');
+          setError('no_movements');
+          return;
+        }
+
+        setStage('saving');
+        const outcome = await saveStatementImport(file.name, hash, statement);
+
+        await runMatching(
+          {
+            importId: outcome.importId,
+            fileName: file.name,
+            meta: metaFromStatement(statement),
+            alreadyImported: outcome.alreadyImported,
+            duplicates: outcome.duplicates,
+          },
+          outcome.movements,
+        );
+      } catch (e) {
+        setStage('error');
+        if (e instanceof PdfTextError) {
+          setError(e.code === 'encrypted' ? 'encrypted' : e.code === 'no_text' ? 'scanned' : 'unreadable');
+          return;
+        }
+        // Kept for diagnosis: the screen only ever shows the actionable message.
+        console.error('reconciliation import failed', e);
+        setError('unknown');
       }
-      // Kept for diagnosis: the screen only ever shows the actionable message.
-      console.error('reconciliation import failed', e);
-      setError('unknown');
-    }
-  }, []);
+    },
+    [runMatching],
+  );
+
+  /**
+   * Reopen a statement already in the database.
+   *
+   * No PDF, no parsing, no inserts — the movements and their statuses are
+   * already there, so this is the matching pass over what is still open.
+   */
+  const openImport = useCallback(
+    async (importId: string, options: { useAi?: boolean } = {}) => {
+      setError(null);
+      try {
+        setStage('matching');
+        const [record, movements] = await Promise.all([
+          findImport(importId),
+          loadMovements(importId),
+        ]);
+        if (!record) {
+          setStage('error');
+          setError('unknown');
+          return;
+        }
+        await runMatching(
+          {
+            importId,
+            fileName: record.fileName,
+            meta: metaFromStats(record.cardLast4, record.closingDate, record.stats),
+            alreadyImported: false,
+            duplicates: 0,
+          },
+          movements,
+          options,
+        );
+      } catch (e) {
+        console.error('reopening the import failed', e);
+        setStage('error');
+        setError('unknown');
+      }
+    },
+    [runMatching],
+  );
 
   /** Drop a suggestion from the screen once the user has answered it. */
   const settle = useCallback((movementId: string) => {
@@ -189,9 +332,17 @@ export function useReconciliation() {
             ...current,
             matches: current.matches.filter((s) => s.movement.id !== movementId),
             review: current.review.filter((s) => s.movement.id !== movementId),
+            recommended: current.recommended.filter((s) => s.movement.id !== movementId),
             unmatchedMovements: current.unmatchedMovements.filter((m) => m.id !== movementId),
           }
         : current,
+    );
+  }, []);
+
+  /** Move an accepted pair into the Reconciled group without a round trip. */
+  const recordConfirmed = useCallback((match: ConfirmedMatch) => {
+    setView((current) =>
+      current ? { ...current, confirmed: [match, ...current.confirmed] } : current,
     );
   }, []);
 
@@ -202,16 +353,39 @@ export function useReconciliation() {
         suggestion.expense.id,
         suggestion.score,
         suggestion.reason,
+        // Accepting is the user saying this expense was on the card, so an
+        // expense with no method recorded gets one.
+        { stampAsCard: !suggestion.expense.paymentMethod },
       );
       // Only on an explicit request: the reconciliation itself never rewrites
       // an amount the user entered.
       if (options?.adoptCardAmount) {
         await updateExpenseAmount(suggestion.expense.id, suggestion.movement.amount);
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
       }
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+
+      recordConfirmed({
+        movement: { ...suggestion.movement, status: 'confirmed', matchedTransactionId: suggestion.expense.id },
+        transaction: {
+          id: suggestion.expense.id,
+          type: 'expense',
+          amount: options?.adoptCardAmount ? suggestion.movement.amount : suggestion.expense.amount,
+          currency: suggestion.expense.currency,
+          fxRate: 1,
+          category: suggestion.expense.category,
+          description: suggestion.expense.description,
+          occurredOn: suggestion.expense.occurredOn,
+          paymentMethod: suggestion.expense.paymentMethod ?? 'credit',
+          rawInput: null,
+          calculation: null,
+          createdAt: '',
+        },
+        matchedAt: new Date().toISOString(),
+        score: suggestion.score.total,
+      });
       settle(suggestion.movement.id);
     },
-    [queryClient, settle],
+    [queryClient, recordConfirmed, settle],
   );
 
   const decline = useCallback(
@@ -235,9 +409,57 @@ export function useReconciliation() {
       await createExpenseFromMovement(movement, input);
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       settle(movement.id);
+      // The new expense is reconciled on creation, so it belongs in the
+      // Reconciled group straight away.
+      recordConfirmed({
+        movement: { ...movement, status: 'confirmed' },
+        transaction: {
+          id: '',
+          type: 'expense',
+          amount: input.amount,
+          currency: input.currency as Transaction['currency'],
+          fxRate: input.fxRate,
+          category: input.category,
+          description: input.description,
+          occurredOn: input.occurredOn,
+          paymentMethod: input.paymentMethod ?? 'credit',
+          rawInput: input.rawInput ?? null,
+          calculation: null,
+          createdAt: '',
+        },
+        matchedAt: new Date().toISOString(),
+        score: 100,
+      });
     },
-    [queryClient, settle],
+    [queryClient, recordConfirmed, settle],
   );
 
-  return { stage, error, view, importStatement, reset, accept, decline, ignore, createExpense };
+  /**
+   * Take back a confirmation. The tray is rebuilt so the movement reappears
+   * where it belongs, with the model left alone: its verdicts have not
+   * changed and a second call would spend quota to learn nothing.
+   */
+  const undo = useCallback(
+    async (match: ConfirmedMatch) => {
+      await undoMatch(match.movement.id);
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      const importId = view?.importId;
+      if (importId) await openImport(importId, { useAi: false });
+    },
+    [openImport, queryClient, view?.importId],
+  );
+
+  return {
+    stage,
+    error,
+    view,
+    importStatement,
+    openImport,
+    reset,
+    accept,
+    decline,
+    ignore,
+    createExpense,
+    undo,
+  };
 }

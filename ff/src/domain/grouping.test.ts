@@ -14,6 +14,7 @@ function tx(occurredOn: string, id = occurredOn): Transaction {
     category: 'food',
     description: 'test',
     occurredOn,
+    paymentMethod: null,
     rawInput: null,
     calculation: null,
     createdAt: `${occurredOn}T12:00:00.000Z`,

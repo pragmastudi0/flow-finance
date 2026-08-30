@@ -9,6 +9,8 @@ import { UploadZone } from '@/components/analysis/UploadZone';
 import { MatchCard } from '@/components/reconciliation/MatchCard';
 import { MovementRow } from '@/components/reconciliation/MovementRow';
 import { CreateExpenseSheet } from '@/components/reconciliation/CreateExpenseSheet';
+import { ImportHistory } from '@/components/reconciliation/ImportHistory';
+import { ConfirmedRow } from '@/components/reconciliation/ConfirmedRow';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { ROUTES } from '@/lib/routes';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -33,8 +35,10 @@ const STAGE_LABEL: Record<Exclude<ImportStage, 'idle' | 'done' | 'error'>, strin
  */
 export default function Reconciliation() {
   const { t, language } = useLanguage();
-  const { stage, error, view, importStatement, reset, accept, decline, ignore, createExpense } =
-    useReconciliation();
+  const {
+    stage, error, view, importStatement, openImport, reset,
+    accept, decline, ignore, createExpense, undo,
+  } = useReconciliation();
   const [busy, setBusy] = useState(false);
   const [creatingFrom, setCreatingFrom] = useState<BankMovement | null>(null);
 
@@ -62,14 +66,17 @@ export default function Reconciliation() {
       />
 
       {stage === 'idle' && (
-        <UploadZone
-          onFileSelected={importStatement}
-          acceptedTypes={['application/pdf']}
-          accept="application/pdf"
-          icon={FileText}
-          title={t('reconciliationUploadTitle')}
-          hint={t('reconciliationFormats')}
-        />
+        <div className="space-y-7">
+          <ImportHistory onOpen={openImport} />
+          <UploadZone
+            onFileSelected={importStatement}
+            acceptedTypes={['application/pdf']}
+            accept="application/pdf"
+            icon={FileText}
+            title={t('reconciliationUploadTitle')}
+            hint={t('reconciliationFormats')}
+          />
+        </div>
       )}
 
       {stage !== 'idle' && stage !== 'done' && stage !== 'error' && (
@@ -86,6 +93,21 @@ export default function Reconciliation() {
       {stage === 'done' && view && (
         <div className="space-y-7">
           <Summary view={view} />
+
+          {view.confirmed.length > 0 && (
+            <Group title={t('confirmedGroup')} count={view.confirmed.length}>
+              <div className="overflow-hidden rounded-2xl bg-surface-muted/60">
+                {view.confirmed.map((match) => (
+                  <ConfirmedRow
+                    key={match.movement.id}
+                    match={match}
+                    busy={busy}
+                    onUndo={() => run(() => undo(match), t('undone'))}
+                  />
+                ))}
+              </div>
+            </Group>
+          )}
 
           {view.matches.length > 0 && (
             <Group title={t('matchesGroup')} count={view.matches.length}>
@@ -107,6 +129,23 @@ export default function Reconciliation() {
             <Group title={t('reviewGroup')} count={view.review.length}>
               <div className="space-y-3">
                 {view.review.map((suggestion) => (
+                  <MatchCard
+                    key={suggestion.movement.id}
+                    suggestion={suggestion}
+                    busy={busy}
+                    onAccept={(options) => onAccept(suggestion, options)}
+                    onReject={() => run(() => decline(suggestion), t('rejectAction'))}
+                  />
+                ))}
+              </div>
+            </Group>
+          )}
+
+          {view.recommended.length > 0 && (
+            <Group title={t('recommendedGroup')} count={view.recommended.length}>
+              <p className="px-1 text-[13px] text-ink-tertiary">{t('recommendedHint')}</p>
+              <div className="space-y-3">
+                {view.recommended.map((suggestion) => (
                   <MatchCard
                     key={suggestion.movement.id}
                     suggestion={suggestion}
@@ -200,8 +239,8 @@ function Group({ title, count, children }: { title: string; count: number; child
 /** The count line, plus every warning the extraction produced. */
 function Summary({ view }: { view: NonNullable<ReturnType<typeof useReconciliation>['view']> }) {
   const { t } = useLanguage();
-  const total = view.outcome.movements.length;
-  const check = view.subtotalCheck;
+  const total = view.movementCount;
+  const check = view.meta.subtotalCheck;
 
   return (
     <div className="space-y-3 rounded-2xl bg-surface-muted/60 p-4">
@@ -209,23 +248,27 @@ function Summary({ view }: { view: NonNullable<ReturnType<typeof useReconciliati
         {total} {t('movementsAnalysed')}
       </p>
       <div className="flex flex-wrap gap-x-5 gap-y-1 text-[14px] text-ink-secondary">
+        {view.confirmed.length > 0 && (
+          <span className="text-income">{view.confirmed.length} {t('reconciledCount')}</span>
+        )}
         <span>{view.matches.length} {t('matchesFound')}</span>
         <span>{view.review.length} {t('toReview')}</span>
+        {view.recommended.length > 0 && (
+          <span>{view.recommended.length} {t('recommendedCount')}</span>
+        )}
         <span>{view.unmatchedMovements.length} {t('notRegistered')}</span>
         <span>{view.unmatchedExpenses.length} {t('noCardMovement')}</span>
       </div>
 
-      {view.outcome.alreadyImported && (
-        <Notice tone="info">{t('alreadyImported')}</Notice>
-      )}
-      {view.outcome.duplicates > 0 && !view.outcome.alreadyImported && (
+      {view.alreadyImported && <Notice tone="info">{t('alreadyImported')}</Notice>}
+      {view.duplicates > 0 && !view.alreadyImported && (
         <Notice tone="info">
-          {view.outcome.duplicates} {t('duplicatesSkipped')}
+          {view.duplicates} {t('duplicatesSkipped')}
         </Notice>
       )}
-      {view.statement.needsReview.length > 0 && (
+      {view.meta.needsReview.length > 0 && (
         <Notice tone="warn">
-          {view.statement.needsReview.length} {t('needsReviewLines')}
+          {view.meta.needsReview.length} {t('needsReviewLines')}
         </Notice>
       )}
       {check && (
