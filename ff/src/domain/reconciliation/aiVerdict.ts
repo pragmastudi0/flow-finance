@@ -9,7 +9,7 @@
  * never costs a call.
  *
  * The validator here is the client-side mirror of
- * `supabase/functions/_shared/reconcile.ts`. Edge functions run on Deno and
+ * `supabase/functions/reconcile-match/index.ts`. Edge functions run on Deno and
  * cannot import from the Vite tree; change one, change the other.
  */
 import type { ReconciliationConfig } from './config.ts';

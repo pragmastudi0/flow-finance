@@ -30,7 +30,7 @@ un componente React.
 | Normalización de descripciones | `src/domain/reconciliation/normalize.ts` |
 | Scoring | `src/domain/reconciliation/scoring.ts` |
 | Candidatos + asignación | `src/domain/reconciliation/matching.ts` |
-| Capa de IA | `src/domain/reconciliation/aiVerdict.ts` + `supabase/functions/reconcile-match` |
+| Capa de IA | `src/domain/reconciliation/aiVerdict.ts` + `supabase/functions/reconcile-match/` |
 | Persistencia | `src/services/reconciliation.ts` |
 | Orquestación | `src/hooks/useReconciliation.ts` |
 | UI | `src/pages/Reconciliation.tsx` + `src/components/reconciliation/` |
@@ -103,9 +103,19 @@ Además:
 
 ## La IA
 
-Se reutiliza la infraestructura que ya existe: `_shared/ai.ts` (proveedor,
-clave del usuario, `AI_PROVIDER`), `claim_ai_call` para la cuota diaria, y el
-seam `AiProvider` del cliente, al que se le agregó `judgeMatches`.
+Se reutiliza la infraestructura que ya existe: la misma resolución de
+proveedor y de clave del usuario que `_shared/ai.ts`, `claim_ai_call` para la
+cuota diaria, y el seam `AiProvider` del cliente, al que se le agregó
+`judgeMatches`.
+
+`reconcile-match/index.ts` es **autocontenido a propósito**: un deploy que
+sube solo la carpeta de la función resuelve `../_shared/ai.ts` fuera de la
+raíz del bundle y falla con `Module not found`. Adentro lleva `_shared/ai.ts`
+recortado a completado de texto (sin la mitad de visión, que esta función no
+usa) y `_shared/cors.ts`, con el mismo orden de precedencia de claves y el
+mismo manejo de `AI_PROVIDER` / `AI_MODEL`. Es el mismo patrón que ya sigue
+`analyze-receipt`, que también duplica su parser inline. **Si tocás
+`_shared/ai.ts`, tocá también este archivo.**
 
 El motor **no** le manda el resumen al modelo. Le manda, como mucho, doce
 pares que quedaron en la banda 70–89 **y** cuyo `descriptionScore` es bajo:
