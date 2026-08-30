@@ -5,7 +5,7 @@ import { useLanguage } from '@/i18n/LanguageProvider';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { AnimatedSegment } from './AnimatedSegment';
 import { PendingTransactionCard } from './PendingTransactionCard';
-import { readLastPaymentMethod } from './PaymentMethodPicker';
+import { PaymentMethodPicker, readLastPaymentMethod } from './PaymentMethodPicker';
 import type { ParsedTransaction } from '@/domain/parser';
 import type { TxType } from '@/domain/categories';
 import type { PaymentMethod } from '@/types/models';
@@ -98,6 +98,17 @@ export function BottomSheetAddExpense({
         ariaLabel={t('type')}
       />
 
+      {/* Above the stage that changes, so it holds still between typing and
+          confirming — and so the default read back from storage is visible
+          *before* the expense is saved, not after. The label is what keeps two
+          stacked segments from reading as one split control. */}
+      {type === 'expense' && (
+        <div className="pt-4">
+          <p className="pb-2 text-[13px] text-ink-secondary">{t('paymentMethod')}</p>
+          <PaymentMethodPicker value={paymentMethod} onChange={setPaymentMethod} />
+        </div>
+      )}
+
       {pending ? (
         <div className="pt-4">
           <PendingTransactionCard
@@ -105,8 +116,6 @@ export function BottomSheetAddExpense({
             onConfirm={() => onConfirm(type === 'expense' ? paymentMethod : null)}
             onCancel={onCancelPending}
             loading={saving}
-            paymentMethod={type === 'expense' ? paymentMethod : undefined}
-            onPaymentMethodChange={setPaymentMethod}
           />
         </div>
       ) : (
