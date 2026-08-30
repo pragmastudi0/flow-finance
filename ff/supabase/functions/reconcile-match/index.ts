@@ -353,7 +353,8 @@ Reglas:
 - Los resúmenes de tarjeta escriben el comercio a través del procesador de pago: "PAYU*AR*UBER", "MERPAGO*CARREFOUR", "DL*SPOTIFY" son Uber, Carrefour y Spotify.
 - Una diferencia de uno a tres días entre el consumo y la fecha de la app es normal: la tarjeta imputa después.
 - Una diferencia de monto puede venir de propinas, recargos o del tipo de cambio del día. No alcanza por sí sola para descartar.
-- Comercios distintos NO son el mismo consumo aunque el monto y la fecha coincidan.
+- La app la escribe una persona, así que muchas veces pone el RUBRO y no el comercio: "nafta" es una estación de servicio ("Est servicio", "Shell", "YPF", "Axion"), "super" es un supermercado ("Carrefour", "Coto", "Disco"), "farmacia" es "Farmacity", "delivery" es "Rappi" o "PedidosYa". Si el rubro que escribió se corresponde con lo que vende ese comercio, es el mismo consumo.
+- Comercios distintos NO son el mismo consumo aunque el monto y la fecha coincidan. Un supermercado y un servicio de streaming que cuestan lo mismo el mismo día son una casualidad, no un match.
 - "merchant" es el nombre limpio del comercio ("Uber", "Carrefour"), o null si no lo podés identificar.
 - "reason" es una frase corta en español explicando la decisión.
 - No inventes pares que no recibiste.`;

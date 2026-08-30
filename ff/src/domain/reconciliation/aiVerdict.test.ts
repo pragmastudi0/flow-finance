@@ -52,6 +52,18 @@ test('reconciliation/aiVerdict', async (t) => {
     assert.deepEqual(questions.map((q) => q.id), ['mb:eb']);
   });
 
+  await t.test('every amount anchor is worth asking about', () => {
+    // The anchor is the case the model exists for: `nafta` and
+    // `Est servicio alaminos` share no characters, so no amount of string
+    // comparison connects them.
+    const anchor: MatchSuggestion = {
+      ...suggestion('n', 89, 0),
+      source: 'amount-anchor',
+    };
+    const questions = selectForAi([anchor]);
+    assert.deepEqual(questions.map((q) => q.id), ['mn:en']);
+  });
+
   await t.test('the AI layer can be switched off entirely', () => {
     const questions = selectForAi(
       [suggestion('b', 76, 40)],

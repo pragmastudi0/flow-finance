@@ -61,6 +61,8 @@ export interface AppExpense {
   amount: number;
   currency: Currency;
   category: string;
+  /** Null when the expense predates the column, or nobody picked one. */
+  paymentMethod?: PaymentMethod | null;
   /** Set when this expense is already tied to a movement. */
   reconciledMovementId?: string | null;
 }
@@ -74,8 +76,20 @@ export interface ScoreBreakdown {
 
 export type MatchConfidence = 'high' | 'review';
 
+/**
+ * How a person pays. `null` on a transaction means nobody said — which is
+ * every row that predates the column, and is treated as "could have been on
+ * the card" rather than excluded.
+ */
+export type PaymentMethod = 'cash' | 'transfer' | 'debit' | 'credit' | 'other';
+
 /** Where a score came from, so the UI can say why it is showing a pair. */
-export type MatchSource = 'deterministic' | 'ai-confirmed' | 'ai-rejected';
+export type MatchSource =
+  | 'deterministic'
+  /** Proposed on the strength of the amount and date alone. */
+  | 'amount-anchor'
+  | 'ai-confirmed'
+  | 'ai-rejected';
 
 export interface MatchSuggestion {
   movement: BankMovement;
@@ -94,6 +108,8 @@ export interface ReconciliationResult {
   matches: MatchSuggestion[];
   /** Score in the review band. */
   review: MatchSuggestion[];
+  /** Proposed on the amount and the date alone — see `matching.ts`. */
+  recommended: MatchSuggestion[];
   /** Statement movements with no candidate — "found, not registered". */
   unmatchedMovements: BankMovement[];
   /** App expenses with no candidate — "registered, not on the statement". */
@@ -103,6 +119,7 @@ export interface ReconciliationResult {
     expenses: number;
     matched: number;
     review: number;
+    recommended: number;
     unmatchedMovements: number;
     unmatchedExpenses: number;
   };

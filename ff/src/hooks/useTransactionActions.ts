@@ -13,7 +13,8 @@ import {
 } from '@/hooks/useCategories.ts';
 import { useLanguage } from '@/i18n/LanguageProvider.tsx';
 import { useBlueRate } from '@/hooks/useExchangeRate.ts';
-import type { Transaction } from '@/types/models.ts';
+import { rememberPaymentMethod } from '@/components/money/PaymentMethodPicker.tsx';
+import type { PaymentMethod, Transaction } from '@/types/models.ts';
 import type { ParsedTransaction } from '@/domain/parser.ts';
 
 interface Options {
@@ -37,9 +38,12 @@ export function useTransactionActions({ showMonthOf }: Options) {
   const { data: usdRate } = useBlueRate();
 
   const create = useCallback(
-    async (parsed: ParsedTransaction) => {
+    async (parsed: ParsedTransaction, paymentMethod: PaymentMethod | null = null) => {
       if (createTx.isPending) return false;
       try {
+        // Remembered only once the save went through, so a failed entry does
+        // not change what the next one starts on.
+        if (paymentMethod) rememberPaymentMethod(paymentMethod);
         await createTx.mutateAsync({
           type: parsed.type,
           amount: parsed.amount,
@@ -48,6 +52,7 @@ export function useTransactionActions({ showMonthOf }: Options) {
           category: parsed.category,
           description: parsed.description,
           occurredOn: parsed.date,
+          paymentMethod,
           rawInput: parsed.rawInput,
           calculation: parsed.calculation ?? null,
         });
@@ -84,6 +89,7 @@ export function useTransactionActions({ showMonthOf }: Options) {
                   category: tx.category,
                   description: tx.description,
                   occurredOn: tx.occurredOn,
+                  paymentMethod: tx.paymentMethod,
                   rawInput: tx.rawInput,
                   calculation: tx.calculation,
                 }),

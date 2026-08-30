@@ -327,6 +327,23 @@ const en = {
   statementScanned: 'This PDF is a scan: it has no selectable text.',
   tryAgain: 'Try again',
   importAnother: 'Import another statement',
+  previousStatements: 'Statements you already imported',
+  reconciledCount: 'reconciled',
+  pendingCount: 'pending',
+  confirmedGroup: 'Reconciled',
+  recommendedGroup: 'Recommended',
+  recommendedCount: 'recommended',
+  recommendedHint: 'Same amount, same day — but the descriptions have nothing in common. Check before accepting.',
+  undone: 'Reconciliation undone',
+
+  // payment method
+  paymentMethod: 'Paid with',
+  paymentCash: 'Cash',
+  paymentTransfer: 'Transfer',
+  paymentDebit: 'Debit',
+  paymentCredit: 'Card',
+  paymentOther: 'Other',
+  paymentUnset: 'Not set',
 
 };
 
@@ -634,6 +651,23 @@ const es: typeof en = {
   statementScanned: 'Este PDF es un escaneo: no tiene texto seleccionable.',
   tryAgain: 'Intentar nuevamente',
   importAnother: 'Importar otro resumen',
+  previousStatements: 'Resúmenes que ya importaste',
+  reconciledCount: 'conciliados',
+  pendingCount: 'pendientes',
+  confirmedGroup: 'Conciliados',
+  recommendedGroup: 'Recomendados',
+  recommendedCount: 'recomendados',
+  recommendedHint: 'Mismo importe, mismo día — pero las descripciones no tienen nada en común. Revisá antes de aceptar.',
+  undone: 'Conciliación deshecha',
+
+  // medio de pago
+  paymentMethod: 'Pagado con',
+  paymentCash: 'Efectivo',
+  paymentTransfer: 'Transferencia',
+  paymentDebit: 'Débito',
+  paymentCredit: 'Tarjeta',
+  paymentOther: 'Otro',
+  paymentUnset: 'Sin especificar',
 
 };
 

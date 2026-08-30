@@ -5,8 +5,10 @@ import { useLanguage } from '@/i18n/LanguageProvider';
 import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { AnimatedSegment } from './AnimatedSegment';
 import { PendingTransactionCard } from './PendingTransactionCard';
+import { readLastPaymentMethod } from './PaymentMethodPicker';
 import type { ParsedTransaction } from '@/domain/parser';
 import type { TxType } from '@/domain/categories';
+import type { PaymentMethod } from '@/types/models';
 
 interface BottomSheetAddExpenseProps {
   open: boolean;
@@ -16,7 +18,8 @@ interface BottomSheetAddExpenseProps {
   /** Runs the natural-language parser. Returns false when nothing was understood. */
   onParse: (text: string) => boolean;
   pending: ParsedTransaction | null;
-  onConfirm: () => void;
+  /** Expenses carry how they were paid; income never does. */
+  onConfirm: (paymentMethod: PaymentMethod | null) => void;
   onCancelPending: () => void;
   onUpload: (file: File) => void;
   saving?: boolean;
@@ -43,6 +46,9 @@ export function BottomSheetAddExpense({
   const fileRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  // Seeded from the last one used: a run of card expenses should not cost a
+  // tap each. Read lazily so the storage access happens once.
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(readLastPaymentMethod);
 
   const placeholders = type === 'expense' ? t('placeholdersExpense') : t('placeholdersIncome');
 
@@ -96,9 +102,11 @@ export function BottomSheetAddExpense({
         <div className="pt-4">
           <PendingTransactionCard
             parsed={pending}
-            onConfirm={onConfirm}
+            onConfirm={() => onConfirm(type === 'expense' ? paymentMethod : null)}
             onCancel={onCancelPending}
             loading={saving}
+            paymentMethod={type === 'expense' ? paymentMethod : undefined}
+            onPaymentMethodChange={setPaymentMethod}
           />
         </div>
       ) : (

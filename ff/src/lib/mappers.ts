@@ -9,7 +9,7 @@
  * The `to*` readers accept either shape, so rows already stored with the wrong
  * casing (demo-mode localStorage) are healed on read.
  */
-import type { BankMovement } from '@/domain/reconciliation/types.ts';
+import type { BankMovement, PaymentMethod } from '@/domain/reconciliation/types.ts';
 import type {
   Category,
   CategoryLearning,
@@ -52,6 +52,7 @@ export function toTransaction(row: Row): Transaction {
     category: pick(row, 'category') ?? 'other',
     description: pick(row, 'description') ?? '',
     occurredOn: isoDate(pick(row, 'occurredOn', 'occurred_on')),
+    paymentMethod: pick(row, 'paymentMethod', 'payment_method') ?? null,
     rawInput: pick(row, 'rawInput', 'raw_input') ?? null,
     calculation: pick(row, 'calculation') ?? null,
     createdAt: pick(row, 'createdAt', 'created_at') ?? '',
@@ -66,6 +67,7 @@ export interface TransactionInput {
   category: string;
   description: string;
   occurredOn: string;
+  paymentMethod?: PaymentMethod | null;
   rawInput?: string | null;
   calculation?: string | null;
 }
@@ -80,6 +82,7 @@ export function toTransactionRow(tx: Partial<TransactionInput>): Row {
   if (tx.category !== undefined) row.category = tx.category;
   if (tx.description !== undefined) row.description = tx.description;
   if (tx.occurredOn !== undefined) row.occurred_on = tx.occurredOn;
+  if (tx.paymentMethod !== undefined) row.payment_method = tx.paymentMethod;
   if (tx.rawInput !== undefined) row.raw_input = tx.rawInput;
   if (tx.calculation !== undefined) row.calculation = tx.calculation;
   return row;

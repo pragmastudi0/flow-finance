@@ -17,7 +17,18 @@ import {
 } from '@/components/ui/sheet';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { useCategoryOptions } from '@/hooks/useCategoryOptions';
-import type { Transaction } from '@/types/models';
+import { PAYMENT_METHODS, type PaymentMethod, type Transaction } from '@/types/models';
+
+/** `null` cannot be a Radix Select value, so "unset" gets its own sentinel. */
+const UNSET = '__unset__';
+
+const PAYMENT_LABEL = {
+  cash: 'paymentCash',
+  transfer: 'paymentTransfer',
+  debit: 'paymentDebit',
+  credit: 'paymentCredit',
+  other: 'paymentOther',
+} as const;
 
 interface Props {
   open: boolean;
@@ -39,6 +50,7 @@ export function EditTransactionSheet({
   const [category, setCategory] = useState('other');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<string>(UNSET);
 
   const { options: categoryOptions } = useCategoryOptions(type);
 
@@ -50,6 +62,7 @@ export function EditTransactionSheet({
       setCategory(transaction.category);
       setDescription(transaction.description);
       setDate(transaction.occurredOn);
+      setPaymentMethod(transaction.paymentMethod ?? UNSET);
     }
   }, [transaction]);
 
@@ -62,6 +75,7 @@ export function EditTransactionSheet({
       category,
       description,
       occurredOn: date,
+      paymentMethod: paymentMethod === UNSET ? null : (paymentMethod as PaymentMethod),
     });
   };
 
@@ -133,6 +147,25 @@ export function EditTransactionSheet({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Only expenses can appear on a card statement, so income has no
+              method to record. */}
+          {type === 'expense' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-payment">{t('paymentMethod')}</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger id="edit-payment"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={UNSET}>{t('paymentUnset')}</SelectItem>
+                  {PAYMENT_METHODS.map((method) => (
+                    <SelectItem key={method} value={method}>
+                      {t(PAYMENT_LABEL[method])}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label htmlFor="edit-desc">{t('description')}</Label>
