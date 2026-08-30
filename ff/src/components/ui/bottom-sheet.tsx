@@ -7,8 +7,11 @@ import { SPRING_SOFT } from '@/lib/motion';
 /**
  * iOS Safari shrinks the *visual* viewport when the keyboard opens but leaves
  * the layout viewport alone, so a `bottom-0` panel ends up underneath it.
- * Growing the panel's bottom padding pushes its content back into view without
- * touching the transform that the dismiss drag owns.
+ * Returns the keyboard's height so the panel can be lifted to rest on top of
+ * it. Lifting via `bottom` rather than a transform keeps the `y` that framer
+ * animates — and that the dismiss drag owns — untouched; and unlike bottom
+ * padding, which only adds scrollable space *inside* the panel, it also shrinks
+ * the scroll area to the space that is actually visible.
  */
 function useKeyboardInset(): number {
   const [inset, setInset] = useState(0);
@@ -91,10 +94,13 @@ export function BottomSheet({ open, onOpenChange, title, children, className }: 
                   exit={{ y: '100%' }}
                   transition={SPRING_SOFT}
                   className={cn(
-                    'fixed inset-x-0 bottom-0 z-50 max-h-[90dvh] overflow-y-auto rounded-t-[24px] bg-surface shadow-float',
+                    'fixed inset-x-0 z-50 overflow-y-auto rounded-t-[24px] bg-surface shadow-float',
                     className,
                   )}
-                  style={{ paddingBottom: keyboardInset }}
+                  style={{
+                    bottom: keyboardInset,
+                    maxHeight: `calc(90dvh - ${keyboardInset}px)`,
+                  }}
                 >
                   <div
                     onPointerDown={(e) => controls.start(e)}

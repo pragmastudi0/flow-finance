@@ -5,18 +5,13 @@ import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { SPRING } from '@/lib/motion';
 import { Button } from '@/components/ui/button';
-import { PaymentMethodPicker } from './PaymentMethodPicker';
 import type { ParsedTransaction } from '@/domain/parser';
-import type { PaymentMethod } from '@/types/models';
 
 interface PendingTransactionCardProps {
   parsed: ParsedTransaction;
   onConfirm: () => void;
   onCancel: () => void;
   loading?: boolean;
-  /** Omitted for income, which never appears on a card statement. */
-  paymentMethod?: PaymentMethod;
-  onPaymentMethodChange?: (method: PaymentMethod) => void;
 }
 
 /**
@@ -30,8 +25,6 @@ export function PendingTransactionCard({
   onConfirm,
   onCancel,
   loading,
-  paymentMethod,
-  onPaymentMethodChange,
 }: PendingTransactionCardProps) {
   const { t, language } = useLanguage();
   const categoryLabel = useCategoryLabel();
@@ -73,12 +66,6 @@ export function PendingTransactionCard({
           {formatCurrency(parsed.amount, parsed.currency)}
         </span>
       </div>
-
-      {paymentMethod && onPaymentMethodChange && (
-        <div className="mt-3">
-          <PaymentMethodPicker value={paymentMethod} onChange={onPaymentMethodChange} />
-        </div>
-      )}
 
       <div className="mt-3 flex gap-2">
         <Button variant="ghost" className="flex-1" onClick={onCancel} disabled={loading}>
