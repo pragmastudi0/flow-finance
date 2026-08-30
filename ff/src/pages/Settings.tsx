@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Languages, LogOut, Tag, Receipt, DollarSign } from 'lucide-react';
+import { Languages, LogOut, Tag, Receipt, DollarSign, Scale } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { useLanguage } from '@/i18n/LanguageProvider';
@@ -55,6 +55,12 @@ export default function Settings() {
             label={t('fixedExpenses')}
             description={t('fixedExpensesSubtitle')}
             to={ROUTES.fixedExpenses}
+          />
+          <ListRow
+            icon={Scale}
+            label={t('reconciliation')}
+            description={t('reconciliationSubtitle')}
+            to={ROUTES.reconciliation}
           />
           <ListRow
             icon={DollarSign}

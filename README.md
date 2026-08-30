@@ -51,7 +51,29 @@ npm run build
 - Diccionario i18n unificado ES/EN
 - Rutas y providers
 
+- Conciliación bancaria: import del resumen en PDF, motor de matching
+  determinístico, IA solo para los casos ambiguos, bandeja de revisión
+
 **Pendiente:** las 7 pantallas y la capa de acceso a datos con react-query.
+
+---
+
+## Conciliación bancaria
+
+Subís el PDF del resumen de la tarjeta y la app lo compara contra los gastos
+que cargaste a mano. Los movimientos no coinciden exacto — `UBER *TRIP 45821`
+el 29/08 por $4.752 contra `Uber` el 28/08 por $4.000 — así que hay un motor
+de scoring por descripción, fecha y monto, y una bandeja donde confirmás.
+
+Nada se concilia solo: hasta un 100 % es una recomendación con un botón
+abajo.
+
+Detalle completo en [`ff/docs/CONCILIACION.md`](ff/docs/CONCILIACION.md).
+
+```bash
+supabase db push                              # migración 0007
+supabase functions deploy reconcile-match     # casos ambiguos
+```
 
 ---
 

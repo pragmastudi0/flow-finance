@@ -9,6 +9,7 @@
  * The `to*` readers accept either shape, so rows already stored with the wrong
  * casing (demo-mode localStorage) are healed on read.
  */
+import type { BankMovement } from '@/domain/reconciliation/types.ts';
 import type {
   Category,
   CategoryLearning,
@@ -157,5 +158,49 @@ export function toExchangeRateEntry(row: Row): ExchangeRateEntry {
     rateBuy: pick(row, 'rateBuy', 'rate_buy') ?? null,
     rateSell: pick(row, 'rateSell', 'rate_sell') ?? null,
     errorMessage: pick(row, 'errorMessage', 'error_message') ?? null,
+  };
+}
+
+/**
+ * `flowfinance_bank_transactions` row → the movement shape the reconciliation
+ * engine works with. The normalized description is derived on read, never
+ * stored, so improving the normalizer needs no backfill.
+ */
+export function toBankMovement(row: Row): BankMovement {
+  return {
+    id: row.id,
+    occurredOn: isoDate(pick(row, 'occurredOn', 'occurred_on')),
+    description: pick(row, 'description') ?? '',
+    amount: num(row.amount, 0),
+    currency: pick(row, 'currency') ?? 'ARS',
+    direction: pick(row, 'direction') === 'credit' ? 'credit' : 'debit',
+    kind: pick(row, 'kind') ?? 'purchase',
+    sourceReference: pick(row, 'sourceReference', 'source_reference') ?? null,
+    installmentCurrent: pick(row, 'installmentCurrent', 'installment_current') ?? null,
+    installmentTotal: pick(row, 'installmentTotal', 'installment_total') ?? null,
+    cardLast4: pick(row, 'cardLast4', 'card_last4') ?? null,
+    fingerprint: pick(row, 'fingerprint') ?? '',
+    rawLine: pick(row, 'rawLine', 'raw_line') ?? '',
+    status: pick(row, 'status') ?? 'unmatched',
+    matchedTransactionId: pick(row, 'matchedTransactionId', 'matched_transaction_id') ?? null,
+  };
+}
+
+/** Movement → row, for the insert that follows a statement import. */
+export function toBankMovementRow(m: BankMovement): Row {
+  return {
+    occurred_on: m.occurredOn,
+    description: m.description,
+    amount: m.amount,
+    currency: m.currency,
+    direction: m.direction,
+    kind: m.kind,
+    source_reference: m.sourceReference,
+    installment_current: m.installmentCurrent,
+    installment_total: m.installmentTotal,
+    card_last4: m.cardLast4,
+    fingerprint: m.fingerprint,
+    raw_line: m.rawLine,
+    status: m.status ?? 'unmatched',
   };
 }

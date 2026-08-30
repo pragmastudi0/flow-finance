@@ -1,17 +1,43 @@
 import { useCallback, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { UploadCloud } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 interface UploadZoneProps {
   onFileSelected: (file: File) => void;
   loading?: boolean;
+  /** MIME types to accept. Defaults to a receipt photo or PDF. */
+  acceptedTypes?: string[];
+  /** The `accept` attribute of the hidden input. */
+  accept?: string;
+  title?: string;
+  loadingTitle?: string;
+  hint?: string;
+  /** Shown instead of the default cloud icon. */
+  icon?: LucideIcon;
 }
 
-const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
+const RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
 const MAX_SIZE = 10 * 1024 * 1024;
 
-export function UploadZone({ onFileSelected, loading }: UploadZoneProps) {
+/**
+ * The drop target, shared by receipt analysis and statement import.
+ *
+ * The two flows differ only in what they accept and what they say, so they
+ * are props rather than a second component — a duplicate would have drifted
+ * on the drag states within a release.
+ */
+export function UploadZone({
+  onFileSelected,
+  loading,
+  acceptedTypes = RECEIPT_TYPES,
+  accept = 'image/*,application/pdf',
+  title,
+  loadingTitle,
+  hint,
+  icon: Icon = UploadCloud,
+}: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,8 +45,12 @@ export function UploadZone({ onFileSelected, loading }: UploadZoneProps) {
   const validateAndSend = useCallback(
     (file: File) => {
       setError(null);
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        setError('Formato no soportado. Usá imágenes JPG, PNG, WEBP, HEIC o PDF.');
+      if (!acceptedTypes.includes(file.type)) {
+        setError(
+          acceptedTypes.length === 1 && acceptedTypes[0] === 'application/pdf'
+            ? 'Formato no soportado. Subí el resumen en PDF.'
+            : 'Formato no soportado. Usá imágenes JPG, PNG, WEBP, HEIC o PDF.',
+        );
         return;
       }
       if (file.size > MAX_SIZE) {
@@ -29,7 +59,7 @@ export function UploadZone({ onFileSelected, loading }: UploadZoneProps) {
       }
       onFileSelected(file);
     },
-    [onFileSelected],
+    [acceptedTypes, onFileSelected],
   );
 
   const handleDrop = useCallback(
@@ -69,16 +99,16 @@ export function UploadZone({ onFileSelected, loading }: UploadZoneProps) {
         <input
           ref={inputRef}
           type="file"
-          accept="image/*,application/pdf"
+          accept={accept}
           className="hidden"
           onChange={handleChange}
         />
-        <UploadCloud className="mb-3 h-10 w-10 text-muted-foreground" />
+        <Icon className="mb-3 h-10 w-10 text-muted-foreground" />
         <p className="text-sm font-medium text-foreground">
-          {loading ? 'Analizando comprobante…' : 'Subí tu comprobante'}
+          {loading ? loadingTitle ?? 'Analizando comprobante…' : title ?? 'Subí tu comprobante'}
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Foto o PDF — máximo 10 MB
+          {hint ?? 'Foto o PDF — máximo 10 MB'}
         </p>
         {error && (
           <p className="mt-2 text-xs text-destructive">{error}</p>
