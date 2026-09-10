@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { ListGroup, ListRow } from '@/components/layout/ListGroup';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
 import { ApiKeyManager } from '@/components/settings/ApiKeyManager';
+import { AiContextCard } from '@/components/settings/AiContextCard';
 
 export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
@@ -69,6 +70,13 @@ export default function Settings() {
             to={ROUTES.exchangeRate}
           />
         </ListGroup>
+
+        <div>
+          <h3 className="px-4 pb-3 text-xs font-semibold uppercase tracking-wider text-ink-tertiary">
+            {t('aiContext')}
+          </h3>
+          <AiContextCard />
+        </div>
 
         <div>
           <h3 className="px-4 pb-3 text-xs font-semibold uppercase tracking-wider text-ink-tertiary">
