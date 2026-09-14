@@ -165,6 +165,7 @@ const en = {
   // fixed expenses
   fixedExpenses: 'Fixed Expenses',
   fixedExpensesSubtitle: 'Manage your installments and recurring expenses',
+  aiContext: 'Context for the AI',
   apiKeys: 'AI API Keys',
   apiKeysSubtitle: 'Configure your AI provider credentials',
   newFixedExpense: 'New Fixed Expense',
@@ -491,6 +492,7 @@ const es: typeof en = {
 
   fixedExpenses: 'Gastos Fijos',
   fixedExpensesSubtitle: 'Gestiona tus cuotas y gastos recurrentes',
+  aiContext: 'Contexto para la IA',
   apiKeys: 'Claves API de IA',
   apiKeysSubtitle: 'Configura tus credenciales del proveedor de IA',
   newFixedExpense: 'Nuevo Gasto Fijo',

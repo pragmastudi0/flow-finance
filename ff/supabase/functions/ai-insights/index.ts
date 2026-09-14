@@ -10,6 +10,7 @@
 // fails at boot instead of at type-check. A relative path always resolves.
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { extractJson, getProvider, MissingApiKeyError } from '../_shared/ai.ts';
+import { contextBlock } from '../_shared/context.ts';
 import { buildSnapshot } from '../_shared/finance.ts';
 import { parseReport, REPORT_SYSTEM_PROMPT } from '../_shared/report.ts';
 import { jsonResponse, preflight } from '../_shared/cors.ts';
@@ -88,7 +89,7 @@ Deno.serve(async (req) => {
   try {
     const raw = await provider.complete({
       system: REPORT_SYSTEM_PROMPT,
-      prompt: JSON.stringify(snapshot),
+      prompt: `${contextBlock(user.user_metadata)}${JSON.stringify(snapshot)}`,
       json: true,
     });
     report = parseReport(extractJson(raw));
