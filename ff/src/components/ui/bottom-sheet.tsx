@@ -113,7 +113,17 @@ export function BottomSheet({ open, onOpenChange, title, children, className }: 
                     {title}
                   </DialogPrimitive.Title>
 
-                  <div className="px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]">
+                  {/* The safe-area padding clears the home indicator, which the
+                      keyboard already covers: kept while it's open, it leaves a
+                      gap between the input and the keys. */}
+                  <div
+                    className={cn(
+                      'px-5',
+                      keyboardInset > 0
+                        ? 'pb-3'
+                        : 'pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))]',
+                    )}
+                  >
                     {children}
                   </div>
                 </motion.div>
