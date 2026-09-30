@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportTransactions } from '@/lib/exportReport';
@@ -21,6 +22,9 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
 import { CategoryChart, type ChartView } from '@/components/money/CategoryChart';
+import { CategoryDetailSheet } from '@/components/reports/CategoryDetailSheet';
+import { EditTransactionSheet } from '@/components/transactions/EditTransactionSheet';
+import { aggregateByCategory, totalBaseAmount, type ReportTransactionType } from '@/domain/reporting';
 import type { Transaction } from '@/types/models';
 
 type Period = 'week' | 'month' | 'year' | 'all';
@@ -82,6 +86,9 @@ export default function Reports() {
   const dateLocale = language === 'es' ? es : enUS;
   const [period, setPeriod] = useState<Period>('month');
   const [chartView, setChartView] = useState<ChartView>('pie');
+  const [categoryDetail, setCategoryDetail] = useState<{ category: string; type: ReportTransactionType } | null>(null);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const actions = useTransactionActions();
 
   const dateRange = useMemo(() => getDateRange(period), [period]);
   const { data: transactions = [] } = useTransactions({
@@ -99,37 +106,32 @@ export default function Reports() {
   );
 
   const totalIncome = useMemo(
-    () => incomes.reduce((sum, tx) => sum + tx.amount * (tx.fxRate ?? 1), 0),
+    () => totalBaseAmount(incomes),
     [incomes],
   );
   const totalExpenses = useMemo(
-    () => expenses.reduce((sum, tx) => sum + tx.amount * (tx.fxRate ?? 1), 0),
+    () => totalBaseAmount(expenses),
     [expenses],
   );
   const balance = totalIncome - totalExpenses;
   const savingsRate = totalIncome > 0 ? ((totalIncome - totalExpenses) / totalIncome) * 100 : 0;
 
-  const expensesByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    expenses.forEach((tx) => {
-      const cat = tx.category || 'other';
-      map.set(cat, (map.get(cat) || 0) + tx.amount * (tx.fxRate ?? 1));
-    });
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [expenses]);
+  const expensesByCategory = useMemo(() => aggregateByCategory(expenses, 'expense'), [expenses]);
+  const incomesByCategory = useMemo(() => aggregateByCategory(incomes, 'income'), [incomes]);
+  const categories = useMemo(
+    () => Array.from(new Set(transactions.map((tx) => tx.category).filter(Boolean))).sort(),
+    [transactions],
+  );
 
-  const incomesByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    incomes.forEach((tx) => {
-      const cat = tx.category || 'other_income';
-      map.set(cat, (map.get(cat) || 0) + tx.amount * (tx.fxRate ?? 1));
-    });
-    return Array.from(map.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [incomes]);
+  const handleCategorySelect = (category: string, type: ReportTransactionType) => {
+    setCategoryDetail({ category, type });
+  };
+
+  const handleEditSave = async (data: Partial<Transaction>) => {
+    if (!editingTransaction) return;
+    const saved = await actions.save(editingTransaction, data);
+    if (saved) setEditingTransaction(null);
+  };
 
   const expenseOverTime = useMemo(
     () => buildOverTimeData(expenses, period, dateRange, dateLocale),
@@ -203,6 +205,8 @@ export default function Reports() {
           overTime={expenseOverTime}
           title={t('sheetExpensesByCategory')}
           emptyText={t('noExpenses')}
+          selectedCategory={categoryDetail?.type === 'expense' ? categoryDetail.category : null}
+          onCategorySelect={(category) => handleCategorySelect(category, 'expense')}
         />
 
         <CategoryChart
@@ -212,6 +216,8 @@ export default function Reports() {
           overTime={incomeOverTime}
           title={t('sheetIncomeByCategory')}
           emptyText={t('noIncome')}
+          selectedCategory={categoryDetail?.type === 'income' ? categoryDetail.category : null}
+          onCategorySelect={(category) => handleCategorySelect(category, 'income')}
         />
 
         <section>
@@ -256,6 +262,28 @@ export default function Reports() {
           )}
         </section>
       </div>
+
+      <CategoryDetailSheet
+        open={Boolean(categoryDetail)}
+        onOpenChange={(open) => { if (!open) setCategoryDetail(null); }}
+        category={categoryDetail?.category ?? null}
+        type={categoryDetail?.type ?? 'expense'}
+        transactions={transactions}
+        categories={categories}
+        onEdit={setEditingTransaction}
+      />
+
+      <EditTransactionSheet
+        open={Boolean(editingTransaction)}
+        onOpenChange={(open) => { if (!open) setEditingTransaction(null); }}
+        transaction={editingTransaction}
+        onSave={handleEditSave}
+        onDelete={(transaction) => {
+          setEditingTransaction(null);
+          actions.remove(transaction);
+        }}
+        loading={actions.saving}
+      />
     </PageShell>
   );
 }
