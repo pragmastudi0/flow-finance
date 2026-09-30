@@ -13,6 +13,7 @@ import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { chartFill } from '@/lib/color';
 import { formatCurrency } from '@/lib/format';
 import { AnimatedSegment } from './AnimatedSegment';
+import { cn } from '@/lib/cn';
 
 export type ChartView = 'pie' | 'bar';
 
@@ -28,6 +29,8 @@ interface CategoryChartProps {
   overTime: Slice[];
   title: string;
   emptyText: string;
+  selectedCategory?: string | null;
+  onCategorySelect?: (category: string) => void;
 }
 
 function Empty({ text }: { text: string }) {
@@ -51,6 +54,8 @@ export function CategoryChart({
   overTime,
   title,
   emptyText,
+  selectedCategory,
+  onCategorySelect,
 }: CategoryChartProps) {
   const { t } = useLanguage();
   const categoryLabel = useCategoryLabel();
@@ -87,6 +92,11 @@ export function CategoryChart({
                       paddingAngle={2}
                       dataKey="value"
                       stroke="none"
+                      onClick={(entry: { name?: string; payload?: { name?: string } }) => {
+                        const name = entry?.name ?? entry?.payload?.name;
+                        if (name) onCategorySelect?.(name);
+                      }}
+                      style={{ cursor: onCategorySelect ? 'pointer' : undefined }}
                     >
                       {byCategory.map((entry) => (
                         <Cell
@@ -134,12 +144,23 @@ export function CategoryChart({
                     className="h-2 w-2 shrink-0 rounded-full"
                     style={{ backgroundColor: chartFill(colorOf(entry.name)) }}
                   />
-                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink-secondary">
-                    {categoryLabel(entry.name)}
-                  </span>
-                  <span className="tnum shrink-0 text-[14px] font-medium text-ink">
-                    {formatCurrency(entry.value)}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onCategorySelect?.(entry.name)}
+                    disabled={!onCategorySelect}
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg px-1.5 py-1 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink',
+                      onCategorySelect && 'cursor-pointer hover:bg-surface-muted',
+                      selectedCategory === entry.name && 'bg-surface-muted',
+                    )}
+                  >
+                    <span className="min-w-0 truncate text-[14px] text-ink-secondary">
+                      {categoryLabel(entry.name)}
+                    </span>
+                    <span className="tnum shrink-0 text-[14px] font-medium text-ink">
+                      {formatCurrency(entry.value)}
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>

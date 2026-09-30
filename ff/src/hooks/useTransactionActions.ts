@@ -19,14 +19,14 @@ import type { ParsedTransaction } from '@/domain/parser.ts';
 
 interface Options {
   /** Keeps a saved transaction on screen when it lands outside the shown month. */
-  showMonthOf: (iso: string) => void;
+  showMonthOf?: (iso: string) => void;
 }
 
 /**
  * Create / delete / edit, with the toasts and the currency handling that go
  * with them. This was 130 lines of handler bodies inside Home.
  */
-export function useTransactionActions({ showMonthOf }: Options) {
+export function useTransactionActions({ showMonthOf = () => {} }: Options = {}) {
   const { t, language } = useLanguage();
   const es = language === 'es';
   const createTx = useCreateTransaction();
