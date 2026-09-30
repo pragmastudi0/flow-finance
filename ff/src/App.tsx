@@ -26,10 +26,16 @@ const queryClient = new QueryClient({
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden">
+    <div className="relative flex h-[100dvh] min-h-[100svh] flex-col overflow-hidden">
       {/* The single scroll container of the app: pages lay themselves out with
           `min-h-full` and never open a second nested scroller. */}
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <main
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        style={{
+          WebkitOverflowScrolling: 'touch',
+          scrollPaddingBottom: 'calc(var(--nav-h) + var(--nav-gap) + env(safe-area-inset-bottom, 0px) + 1rem)',
+        }}
+      >
         {children}
       </main>
       {/* Floats over `main` rather than sitting beside it — `backdrop-blur` only

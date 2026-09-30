@@ -64,6 +64,7 @@
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    min-height: 100%;
   }
 
   body {
@@ -75,6 +76,20 @@
       system-ui, 'Segoe UI', Roboto, sans-serif;
     /* The app owns its scrolling (see Layout); the document itself never scrolls. */
     overscroll-behavior-y: none;
+    min-height: 100%;
+  }
+
+  #root {
+    min-height: 100%;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* iOS Safari zooms the page when a focused field is under 16px. A floor here
@@ -103,6 +118,7 @@
 
   /* Anchor for the FAB and the nav pill itself. */
   .bottom-nav-offset {
+    right: calc(1.25rem + env(safe-area-inset-right, 0px));
     bottom: calc(var(--nav-h) + var(--nav-gap) + env(safe-area-inset-bottom, 0px) + 1rem);
   }
 
