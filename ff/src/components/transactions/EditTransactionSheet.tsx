@@ -9,12 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
+import { BottomSheet } from '@/components/ui/bottom-sheet';
 import { useLanguage } from '@/i18n/LanguageProvider';
 import { useCategoryOptions } from '@/hooks/useCategoryOptions';
 import { PAYMENT_METHODS, type PaymentMethod, type Transaction } from '@/types/models';
@@ -80,15 +75,12 @@ export function EditTransactionSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>
-            {language === 'es' ? 'Editar transacción' : 'Edit transaction'}
-          </SheetTitle>
-        </SheetHeader>
-
-        <div className="mt-4 space-y-4">
+    <BottomSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={language === 'es' ? 'Editar transacción' : 'Edit transaction'}
+    >
+        <div className="space-y-4">
           <div className="space-y-1.5">
             <Label>{t('type')}</Label>
             <div className="flex gap-2">
@@ -205,7 +197,6 @@ export function EditTransactionSheet({
             </button>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+    </BottomSheet>
   );
 }

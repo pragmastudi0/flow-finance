@@ -26,6 +26,8 @@ interface CategoryChartProps {
   onViewChange: (view: ChartView) => void;
   byCategory: Slice[];
   overTime: Slice[];
+  title: string;
+  emptyText: string;
 }
 
 function Empty({ text }: { text: string }) {
@@ -37,12 +39,19 @@ function Empty({ text }: { text: string }) {
 }
 
 /**
- * Spend by category, small on purpose.
+ * Category totals with a compact chart and a complete ranked list.
  *
  * This was a full-bleed 320px chart with a grid and a legend — the loudest
  * thing on the screen, saying less than the ranked list beneath it.
  */
-export function CategoryChart({ view, onViewChange, byCategory, overTime }: CategoryChartProps) {
+export function CategoryChart({
+  view,
+  onViewChange,
+  byCategory,
+  overTime,
+  title,
+  emptyText,
+}: CategoryChartProps) {
   const { t } = useLanguage();
   const categoryLabel = useCategoryLabel();
   const { colorOf } = useCategoryVisuals();
@@ -51,7 +60,7 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
         <section className="space-y-3">
           {/* Stacked, not side by side: "Desglose por Categoría" next to
               "Pastel/Barras" truncates both at 390px. */}
-          <h2 className="text-[15px] font-semibold text-ink">{t('categoryBreakdown')}</h2>
+          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
           <AnimatedSegment
             options={[
               { value: 'pie' as const, label: t('pie') },
@@ -62,8 +71,8 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
             ariaLabel={t('visualizations')}
           />
 
-          {/* Deliberately small: a full-bleed 320px chart is the loudest thing
-              on the screen and says less than the list beneath it. */}
+          {/* Keep the chart compact so the complete category list remains easy
+              to scan on mobile. */}
           <div className="h-[200px]">
             {view === 'pie' ? (
               byCategory.length > 0 ? (
@@ -97,7 +106,7 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <Empty text={t('noExpenses')} />
+                <Empty text={emptyText} />
               )
             ) : overTime.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -117,9 +126,9 @@ export function CategoryChart({ view, onViewChange, byCategory, overTime }: Cate
             )}
           </div>
 
-          {view === 'pie' && byCategory.length > 0 && (
+          {byCategory.length > 0 && (
             <ul className="space-y-1.5">
-              {byCategory.slice(0, 5).map((entry) => (
+              {byCategory.map((entry) => (
                 <li key={entry.name} className="flex items-center gap-2.5">
                   <span
                     className="h-2 w-2 shrink-0 rounded-full"

@@ -27,8 +27,12 @@ export function NavBar() {
 
   return (
     <nav
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-5"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--nav-gap))' }}
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40"
+      style={{
+        paddingLeft: 'calc(1.25rem + env(safe-area-inset-left, 0px))',
+        paddingRight: 'calc(1.25rem + env(safe-area-inset-right, 0px))',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + var(--nav-gap))',
+      }}
     >
       <div className="pointer-events-auto mx-auto flex h-[var(--nav-h)] max-w-sm items-center gap-1 rounded-full border border-hairline/80 bg-surface/70 px-1.5 shadow-float backdrop-blur-2xl">
         {NAV_ITEMS.map(({ path, labelKey, icon: Icon }) => {

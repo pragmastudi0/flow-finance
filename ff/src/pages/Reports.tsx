@@ -21,6 +21,7 @@ import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
 import { CategoryChart, type ChartView } from '@/components/money/CategoryChart';
+import type { Transaction } from '@/types/models';
 
 type Period = 'week' | 'month' | 'year' | 'all';
 
@@ -44,6 +45,34 @@ function getDateRange(period: Period): { start: string; end: string } {
       start = '2000-01-01';
   }
   return { start, end };
+}
+
+function buildOverTimeData(
+  items: Transaction[],
+  period: Period,
+  dateRange: { start: string; end: string },
+  dateLocale: typeof es,
+) {
+  if (period === 'all' || period === 'year') {
+    const map = new Map<string, number>();
+    items.forEach((tx) => {
+      // Parsed at local noon so date-only values do not shift to the previous day.
+      const monthKey = tx.occurredOn
+        ? format(new Date(`${tx.occurredOn}T12:00:00`), 'MMM', { locale: dateLocale })
+        : '?';
+      map.set(monthKey, (map.get(monthKey) || 0) + tx.amount * (tx.fxRate ?? 1));
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }
+
+  const days = eachDayOfInterval({ start: new Date(dateRange.start), end: new Date(dateRange.end) });
+  return days.map((day) => {
+    const dayStr = format(day, 'yyyy-MM-dd');
+    const total = items
+      .filter((tx) => tx.occurredOn && tx.occurredOn.startsWith(dayStr))
+      .reduce((sum, tx) => sum + tx.amount * (tx.fxRate ?? 1), 0);
+    return { name: format(day, 'dd/MM'), value: total };
+  });
 }
 
 export default function Reports() {
@@ -91,29 +120,26 @@ export default function Reports() {
       .sort((a, b) => b.value - a.value);
   }, [expenses]);
 
-  const barData = useMemo(() => {
-    if (period === 'all' || period === 'year') {
-      const map = new Map<string, number>();
-      expenses.forEach((tx) => {
-        // Parsed at local noon: `new Date('2026-07-01')` is UTC midnight, which
-        // lands on the previous month in AR time.
-        const monthKey = tx.occurredOn
-          ? format(new Date(`${tx.occurredOn}T12:00:00`), 'MMM', { locale: dateLocale })
-          : '?';
-        map.set(monthKey, (map.get(monthKey) || 0) + tx.amount * (tx.fxRate ?? 1));
-      });
-      return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
-    }
-    const { start, end } = dateRange;
-    const days = eachDayOfInterval({ start: new Date(start), end: new Date(end) });
-    return days.map((day) => {
-      const dayStr = format(day, 'yyyy-MM-dd');
-      const total = expenses
-        .filter((tx) => tx.occurredOn && tx.occurredOn.startsWith(dayStr))
-        .reduce((sum, tx) => sum + tx.amount * (tx.fxRate ?? 1), 0);
-      return { name: format(day, 'dd/MM'), value: total };
+  const incomesByCategory = useMemo(() => {
+    const map = new Map<string, number>();
+    incomes.forEach((tx) => {
+      const cat = tx.category || 'other_income';
+      map.set(cat, (map.get(cat) || 0) + tx.amount * (tx.fxRate ?? 1));
     });
-  }, [expenses, period, dateRange]);
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [incomes]);
+
+  const expenseOverTime = useMemo(
+    () => buildOverTimeData(expenses, period, dateRange, dateLocale),
+    [expenses, period, dateRange, dateLocale],
+  );
+
+  const incomeOverTime = useMemo(
+    () => buildOverTimeData(incomes, period, dateRange, dateLocale),
+    [incomes, period, dateRange, dateLocale],
+  );
 
   const handleExport = () => {
     exportTransactions(
@@ -174,7 +200,18 @@ export default function Reports() {
           view={chartView}
           onViewChange={setChartView}
           byCategory={expensesByCategory}
-          overTime={barData}
+          overTime={expenseOverTime}
+          title={t('sheetExpensesByCategory')}
+          emptyText={t('noExpenses')}
+        />
+
+        <CategoryChart
+          view={chartView}
+          onViewChange={setChartView}
+          byCategory={incomesByCategory}
+          overTime={incomeOverTime}
+          title={t('sheetIncomeByCategory')}
+          emptyText={t('noIncome')}
         />
 
         <section>

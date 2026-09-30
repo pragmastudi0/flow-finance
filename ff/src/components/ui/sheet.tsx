@@ -32,7 +32,7 @@ const SheetContent = forwardRef<
     <SheetPrimitive.Content
       ref={ref}
       className={cn(
-        'fixed inset-x-0 bottom-0 z-50 mt-24 max-h-[85dvh] rounded-t-xl border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
+        'fixed inset-x-0 bottom-0 z-50 mt-24 max-h-[calc(85dvh-env(safe-area-inset-bottom,0px))] overflow-y-auto overscroll-contain rounded-t-xl border bg-background p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom',
         className
       )}
       {...props}
