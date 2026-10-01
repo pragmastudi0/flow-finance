@@ -10,6 +10,7 @@ export interface MonthFilter {
   direction: 1 | -1;
   prev: () => void;
   next: () => void;
+  goTo: (month: Date) => void;
   today: () => void;
   /** Brings the month containing `yyyy-MM-dd` into view. */
   showMonthOf: (iso: string) => void;
@@ -70,5 +71,5 @@ export function useMonthFilter(): MonthFilter {
     [month],
   );
 
-  return { month, isCurrentMonth, direction, prev, next, today, showMonthOf, matches };
+  return { month, isCurrentMonth, direction, prev, next, goTo, today, showMonthOf, matches };
 }

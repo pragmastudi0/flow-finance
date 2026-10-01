@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import {
   startOfWeek,
   startOfMonth,
+  endOfMonth,
   startOfYear,
   format,
   eachDayOfInterval,
@@ -13,14 +14,17 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/cn';
 import { useLanguage, useCategoryLabel } from '@/i18n/LanguageProvider';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useMonthFilter } from '@/hooks/useMonthFilter';
 import { useTransactionActions } from '@/hooks/useTransactionActions';
 import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportTransactions } from '@/lib/exportReport';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
+import { MonthSelector } from '@/components/money/MonthSelector';
 import { CategoryChart, type ChartView } from '@/components/money/CategoryChart';
 import { CategoryDetailSheet } from '@/components/reports/CategoryDetailSheet';
 import { EditTransactionSheet } from '@/components/transactions/EditTransactionSheet';
@@ -31,22 +35,24 @@ type Period = 'week' | 'month' | 'year' | 'all';
 
 const PERIODS: Period[] = ['week', 'month', 'year', 'all'];
 
-function getDateRange(period: Period): { start: string; end: string } {
+function getDateRange(period: Period, month: Date): { start: string; end: string } {
   const now = new Date();
-  const end = format(now, 'yyyy-MM-dd');
   let start: string;
+  let end = format(now, 'yyyy-MM-dd');
   switch (period) {
     case 'week':
       start = format(startOfWeek(now, { weekStartsOn: 1 }), 'yyyy-MM-dd');
       break;
     case 'month':
-      start = format(startOfMonth(now), 'yyyy-MM-dd');
+      start = format(startOfMonth(month), 'yyyy-MM-dd');
+      end = format(endOfMonth(month), 'yyyy-MM-dd');
       break;
     case 'year':
       start = format(startOfYear(now), 'yyyy-MM-dd');
       break;
     default:
       start = '2000-01-01';
+      end = format(now, 'yyyy-MM-dd');
   }
   return { start, end };
 }
@@ -84,13 +90,14 @@ export default function Reports() {
   const { iconOf } = useCategoryVisuals();
   const categoryLabel = useCategoryLabel();
   const dateLocale = language === 'es' ? es : enUS;
+  const monthFilter = useMonthFilter();
   const [period, setPeriod] = useState<Period>('month');
   const [chartView, setChartView] = useState<ChartView>('pie');
   const [categoryDetail, setCategoryDetail] = useState<{ category: string; type: ReportTransactionType } | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const actions = useTransactionActions();
 
-  const dateRange = useMemo(() => getDateRange(period), [period]);
+  const dateRange = useMemo(() => getDateRange(period, monthFilter.month), [period, monthFilter.month]);
   const { data: transactions = [] } = useTransactions({
     startDate: dateRange.start,
     endDate: dateRange.end,
@@ -176,6 +183,28 @@ export default function Reports() {
           onChange={setPeriod}
           ariaLabel={t('period')}
         />
+
+        {period === 'month' && (
+          <div className="space-y-2 rounded-2xl border border-hairline px-3 py-2">
+            <MonthSelector
+              month={monthFilter.month}
+              direction={monthFilter.direction}
+              isCurrentMonth={monthFilter.isCurrentMonth}
+              onPrev={monthFilter.prev}
+              onNext={monthFilter.next}
+              onToday={monthFilter.today}
+            />
+            <Input
+              type="month"
+              value={format(monthFilter.month, 'yyyy-MM')}
+              aria-label={t('month')}
+              onChange={(event) => {
+                if (!event.target.value) return;
+                monthFilter.goTo(new Date(`${event.target.value}-01T12:00:00`));
+              }}
+            />
+          </div>
+        )}
 
         {/* One card, four figures — the four separate bordered cards read as a
             dashboard rather than as a summary. */}
