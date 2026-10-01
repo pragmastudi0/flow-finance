@@ -19,7 +19,7 @@ export function PageHeader({ title, subtitle, back, action }: PageHeaderProps) {
   const { language } = useLanguage();
 
   return (
-    <header className="flex items-start gap-1 pb-6 pt-4">
+    <header className="flex items-start gap-2 pb-6 pt-4">
       {back && (
         <Link
           to={back}
@@ -30,14 +30,14 @@ export function PageHeader({ title, subtitle, back, action }: PageHeaderProps) {
         </Link>
       )}
       <div className="min-w-0 flex-1 pt-1.5">
-        <h1 className="truncate text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">
+        <h1 className="break-words text-[28px] font-bold leading-tight tracking-[-0.02em] text-ink">
           {title}
         </h1>
         {subtitle && (
           <p className="mt-0.5 text-[15px] leading-snug text-ink-tertiary">{subtitle}</p>
         )}
       </div>
-      {action && <div className="shrink-0 pt-1">{action}</div>}
+      {action && <div className="flex shrink-0 items-start">{action}</div>}
     </header>
   );
 }

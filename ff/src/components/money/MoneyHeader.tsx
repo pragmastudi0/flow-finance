@@ -62,7 +62,7 @@ export function MoneyHeader({
       </div>
 
       {/* Bleeds past the page gutter so the blur reaches both edges. */}
-      <div className="sticky top-0 z-10 -mx-5 bg-surface/80 px-5 pb-3 pt-2 backdrop-blur-xl">
+      <div className="sticky top-[env(safe-area-inset-top,0px)] z-10 -mx-5 bg-surface/80 px-5 pb-3 pt-2 backdrop-blur-xl">
         <AnimatedSegment
           options={options}
           value={filter}

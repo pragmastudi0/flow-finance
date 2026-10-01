@@ -108,6 +108,13 @@
     padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
   }
 
+  /* Standalone iOS apps can draw the document below the status bar when
+     `viewport-fit=cover` is enabled. Keep the first screen element clear of
+     the notch without changing spacing in regular browsers. */
+  .safe-area-pt {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
   /* The nav floats, so it no longer reserves space in flow. Every page has to
      clear it or its last row hides behind the pill. */
   .pb-nav {

@@ -23,7 +23,7 @@ export function PageShell({ children, width = 'narrow', className }: PageShellPr
       variants={pageVariants}
       initial="hidden"
       animate="visible"
-      className={cn('pb-nav min-h-full bg-surface', className)}
+      className={cn('safe-area-pt pb-nav min-h-full bg-surface', className)}
     >
       <div
         className={cn(
