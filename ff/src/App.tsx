@@ -33,6 +33,10 @@ function Layout({ children }: { children: React.ReactNode }) {
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
         style={{
           WebkitOverflowScrolling: 'touch',
+          // Installed to the Home Screen, the status bar is translucent and the
+          // page draws under the notch; without this the first row of every
+          // page sits behind the clock and can't be scrolled into view.
+          paddingTop: 'env(safe-area-inset-top, 0px)',
           scrollPaddingBottom: 'calc(var(--nav-h) + var(--nav-gap) + env(safe-area-inset-bottom, 0px) + 1rem)',
         }}
       >

@@ -13,6 +13,8 @@ interface MonthSelectorProps {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  /** When set, the month label opens a native month picker to jump anywhere. */
+  onPickMonth?: (month: Date) => void;
 }
 
 export function MonthSelector({
@@ -22,6 +24,7 @@ export function MonthSelector({
   onPrev,
   onNext,
   onToday,
+  onPickMonth,
 }: MonthSelectorProps) {
   const { language } = useLanguage();
   const es_ = language === 'es';
@@ -57,6 +60,22 @@ export function MonthSelector({
             {label}
           </motion.span>
         </AnimatePresence>
+
+        {/* Transparent native picker over the label — tapping the month name
+            opens iOS's month wheel, so you can jump without tapping the arrows
+            twelve times. No separate control, so nothing extra to style. */}
+        {onPickMonth && (
+          <input
+            type="month"
+            value={format(month, 'yyyy-MM')}
+            aria-label={es_ ? 'Elegir mes' : 'Pick month'}
+            onChange={(event) => {
+              if (!event.target.value) return;
+              onPickMonth(new Date(`${event.target.value}-01T12:00:00`));
+            }}
+            className="absolute inset-0 w-full cursor-pointer opacity-0"
+          />
+        )}
       </div>
 
       <div className="flex items-center">
