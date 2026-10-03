@@ -20,7 +20,6 @@ import { useCategoryVisuals } from '@/hooks/useCategoryOptions';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { exportTransactions } from '@/lib/exportReport';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { PageShell } from '@/components/layout/PageShell';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AnimatedSegment } from '@/components/money/AnimatedSegment';
@@ -185,7 +184,7 @@ export default function Reports() {
         />
 
         {period === 'month' && (
-          <div className="space-y-2 rounded-2xl border border-hairline px-3 py-2">
+          <div className="rounded-2xl border border-hairline px-3 py-2">
             <MonthSelector
               month={monthFilter.month}
               direction={monthFilter.direction}
@@ -193,15 +192,7 @@ export default function Reports() {
               onPrev={monthFilter.prev}
               onNext={monthFilter.next}
               onToday={monthFilter.today}
-            />
-            <Input
-              type="month"
-              value={format(monthFilter.month, 'yyyy-MM')}
-              aria-label={t('month')}
-              onChange={(event) => {
-                if (!event.target.value) return;
-                monthFilter.goTo(new Date(`${event.target.value}-01T12:00:00`));
-              }}
+              onPickMonth={monthFilter.goTo}
             />
           </div>
         )}

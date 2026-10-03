@@ -61,8 +61,13 @@ export function MoneyHeader({
         <BalanceCard income={income} expense={expense} />
       </div>
 
-      {/* Bleeds past the page gutter so the blur reaches both edges. */}
-      <div className="sticky top-0 z-10 -mx-5 bg-surface/80 px-5 pb-3 pt-2 backdrop-blur-xl">
+      {/* Bleeds past the page gutter so the blur reaches both edges. The scroll
+          container is padded by the top safe area, so the bar must pin below it
+          too or it tucks under the notch when stuck. */}
+      <div
+        className="sticky z-10 -mx-5 bg-surface/80 px-5 pb-3 pt-2 backdrop-blur-xl"
+        style={{ top: 'env(safe-area-inset-top, 0px)' }}
+      >
         <AnimatedSegment
           options={options}
           value={filter}
